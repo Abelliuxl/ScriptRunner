@@ -1,188 +1,248 @@
--- ScriptRunner - 存储模块
--- 负责脚本数据的持久化存储和管理
+-- ScriptRunner - Storage module (Ace3 build)
+-- Persists and manages script data.
 
-local ScriptRunner = _G.ScriptRunner or {}
+local ScriptRunner = LibStub("AceAddon-3.0"):GetAddon("ScriptRunner")
+local Storage = ScriptRunner:NewModule("Storage", "AceEvent-3.0")
 
--- 存储模块
-ScriptRunner.Storage = {}
-
--- 生成唯一ID
-local function GenerateUniqueID()
-    local timestamp = time()
-    local random = math.random(1000, 9999)
-    return "script_" .. timestamp .. "_" .. random
+local function getScriptDB()
+    ScriptRunner.db.global.scripts = ScriptRunner.db.global.scripts or {}
+    return ScriptRunner.db.global.scripts
 end
 
--- 初始化数据库
-function ScriptRunner.Storage:Initialize()
-    if not ScriptRunnerDB then
-        ScriptRunnerDB = {
-            scripts = {},
-            settings = {
-                enabled = true,
-                debug = false,
-                theme = "default"
-            }
-        }
-        print("|cff00ff00ScriptRunner|r: 数据库已初始化")
+local function generateUniqueID()
+    return string.format("script_%d_%04d", time(), math.random(0, 9999))
+end
+
+function Storage:OnInitialize()
+    getScriptDB()
+end
+
+function Storage:OnEnable()
+end
+
+function Storage:OnDisable()
+end
+
+function Storage:GetAllScripts()
+    return getScriptDB()
+end
+
+function Storage:GetScript(scriptID)
+    if not scriptID then
+        return nil
     end
+    return getScriptDB()[scriptID]
 end
 
--- 获取所有脚本
-function ScriptRunner.Storage:GetAllScripts()
-    return ScriptRunnerDB.scripts or {}
-end
+function Storage:CreateScript(name, code, mode, delay)
+    local scripts = getScriptDB()
+    local scriptID = generateUniqueID()
+    local normalizedMode = "manual"
 
--- 根据ID获取脚本
-function ScriptRunner.Storage:GetScript(scriptID)
-    return ScriptRunnerDB.scripts[scriptID]
-end
+    if mode == "auto" or mode == "delay" then
+        normalizedMode = mode
+    end
 
--- 创建新脚本
-function ScriptRunner.Storage:CreateScript(name, code, mode, delay)
-    local scriptID = GenerateUniqueID()
-    local newScript = {
+    local script = {
         id = scriptID,
-        name = name or "新脚本",
+        name = name or "New Script",
         code = code or "",
-        mode = mode or "manual", -- "auto"/"delay"/"manual"
-        delay = delay or 5,
+        mode = normalizedMode,
+        delay = tonumber(delay) or 5,
         enabled = true,
         createdAt = time(),
-        updatedAt = time()
+        updatedAt = time(),
     }
-    
-    ScriptRunnerDB.scripts[scriptID] = newScript
-    return newScript
+
+    scripts[scriptID] = script
+    self:SendMessage("SCRIPTRUNNER_SCRIPT_CREATED", scriptID, script)
+    return script
 end
 
--- 更新脚本
-function ScriptRunner.Storage:UpdateScript(scriptID, updates)
-    local script = ScriptRunnerDB.scripts[scriptID]
+function Storage:UpdateScript(scriptID, updates)
+    local script = self:GetScript(scriptID)
     if not script then
-        return false, "脚本不存在"
+        return false, "Script does not exist."
     end
-    
-    -- 更新指定字段
+
+    if type(updates) ~= "table" then
+        return false, "Invalid update payload."
+    end
+
+    local oldValues = {}
+
     for key, value in pairs(updates) do
-        script[key] = value
+        oldValues[key] = script[key]
+        if key == "name" and type(value) == "string" then
+            script.name = value
+        elseif key == "code" and type(value) == "string" then
+            script.code = value
+        elseif key == "mode" and (value == "auto" or value == "delay" or value == "manual") then
+            script.mode = value
+        elseif key == "delay" then
+            local numeric = tonumber(value)
+            if numeric and numeric >= 0 then
+                script.delay = numeric
+            end
+        elseif key == "enabled" then
+            script.enabled = not not value
+        end
     end
-    
+
     script.updatedAt = time()
+    self:SendMessage("SCRIPTRUNNER_SCRIPT_UPDATED", scriptID, script, oldValues)
     return true, script
 end
 
--- 删除脚本
-function ScriptRunner.Storage:DeleteScript(scriptID)
-    if ScriptRunnerDB.scripts[scriptID] then
-        ScriptRunnerDB.scripts[scriptID] = nil
-        return true
+function Storage:DeleteScript(scriptID)
+    local scripts = getScriptDB()
+    local script = scripts[scriptID]
+    if not script then
+        return false, "Script does not exist."
     end
-    return false
+
+    scripts[scriptID] = nil
+    self:SendMessage("SCRIPTRUNNER_SCRIPT_DELETED", scriptID, script)
+    return true
 end
 
--- 切换脚本启用状态
-function ScriptRunner.Storage:ToggleScript(scriptID)
-    local script = ScriptRunnerDB.scripts[scriptID]
-    if script then
-        script.enabled = not script.enabled
-        script.updatedAt = time()
-        return script.enabled
+function Storage:ToggleScript(scriptID)
+    local script = self:GetScript(scriptID)
+    if not script then
+        return false
     end
-    return false
+
+    local oldEnabled = script.enabled
+    script.enabled = not script.enabled
+    script.updatedAt = time()
+    self:SendMessage("SCRIPTRUNNER_SCRIPT_TOGGLED", scriptID, script, oldEnabled)
+    return script.enabled
 end
 
--- 获取设置
-function ScriptRunner.Storage:GetSettings()
-    return ScriptRunnerDB.settings
-end
-
--- 更新设置
-function ScriptRunner.Storage:UpdateSettings(newSettings)
-    for key, value in pairs(newSettings) do
-        ScriptRunnerDB.settings[key] = value
+function Storage:ImportScripts(data)
+    if type(data) ~= "table" then
+        return false, "Import data must be a table."
     end
-end
 
--- 导出脚本数据
-function ScriptRunner.Storage:ExportScripts()
-    local exportData = {
-        version = "1.0.0",
-        exportTime = time(),
-        scripts = {}
-    }
-    
-    for id, script in pairs(ScriptRunnerDB.scripts) do
-        exportData.scripts[id] = {
-            name = script.name,
-            code = script.code,
-            mode = script.mode,
-            delay = script.delay,
-            enabled = script.enabled
-        }
+    local scripts = getScriptDB()
+    local count = 0
+
+    for _, info in pairs(data) do
+        if type(info) == "table" and info.code then
+            local scriptID = generateUniqueID()
+            local mode = "manual"
+            if info.mode == "auto" or info.mode == "delay" then
+                mode = info.mode
+            end
+
+            local script = {
+                id = scriptID,
+                name = info.name or "Imported Script",
+                code = info.code or "",
+                mode = mode,
+                delay = tonumber(info.delay) or 5,
+                enabled = info.enabled ~= false,
+                createdAt = info.createdAt or time(),
+                updatedAt = time(),
+            }
+
+            scripts[scriptID] = script
+            self:SendMessage("SCRIPTRUNNER_SCRIPT_CREATED", scriptID, script)
+            count = count + 1
+        end
     end
-    
-    return exportData
+
+    return true, count
 end
 
--- 导入脚本数据
-function ScriptRunner.Storage:ImportScripts(importData)
-    if not importData or not importData.scripts then
-        return false, "无效的导入数据"
+function Storage:ClearAllScripts()
+    local scripts = getScriptDB()
+    local removed = {}
+
+    for id, script in pairs(scripts) do
+        removed[id] = script
+        self:SendMessage("SCRIPTRUNNER_SCRIPT_DELETED", id, script)
+        scripts[id] = nil
     end
-    
-    local importCount = 0
-    for id, scriptData in pairs(importData.scripts) do
-        local newID = GenerateUniqueID() -- 生成新ID避免冲突
-        local newScript = {
-            id = newID,
-            name = scriptData.name or "导入脚本",
-            code = scriptData.code or "",
-            mode = scriptData.mode or "manual",
-            delay = scriptData.delay or 5,
-            enabled = scriptData.enabled or true,
-            createdAt = time(),
-            updatedAt = time()
-        }
-        ScriptRunnerDB.scripts[newID] = newScript
-        importCount = importCount + 1
-    end
-    
-    return true, importCount
+
+    self:SendMessage("SCRIPTRUNNER_DATABASE_CLEARED", removed)
 end
 
--- 清理所有脚本（危险操作，需要确认）
-function ScriptRunner.Storage:ClearAllScripts()
-    ScriptRunnerDB.scripts = {}
-end
-
--- 获取脚本统计信息
-function ScriptRunner.Storage:GetStats()
+function Storage:GetStats()
+    local scripts = getScriptDB()
     local stats = {
         total = 0,
         enabled = 0,
+        disabled = 0,
         auto = 0,
         delay = 0,
-        manual = 0
+        manual = 0,
+        totalCodeLength = 0,
+        averageCodeLength = 0,
     }
-    
-    for _, script in pairs(ScriptRunnerDB.scripts) do
+
+    for _, script in pairs(scripts) do
         stats.total = stats.total + 1
         if script.enabled then
             stats.enabled = stats.enabled + 1
+        else
+            stats.disabled = stats.disabled + 1
         end
-        
+
         if script.mode == "auto" then
             stats.auto = stats.auto + 1
         elseif script.mode == "delay" then
             stats.delay = stats.delay + 1
-        elseif script.mode == "manual" then
+        else
             stats.manual = stats.manual + 1
         end
+
+        if script.code then
+            stats.totalCodeLength = stats.totalCodeLength + #script.code
+        end
     end
-    
+
+    if stats.total > 0 then
+        stats.averageCodeLength = math.floor(stats.totalCodeLength / stats.total)
+    end
+
     return stats
 end
 
--- 注册存储模块到全局
-_G.ScriptRunner = ScriptRunner
+function Storage:Maintenance()
+    local scripts = getScriptDB()
+    local fixed = 0
+
+    for _, script in pairs(scripts) do
+        local updated = false
+
+        if not script.name or script.name == "" then
+            script.name = "Untitled Script"
+            updated = true
+        end
+
+        if script.mode ~= "auto" and script.mode ~= "delay" and script.mode ~= "manual" then
+            script.mode = "manual"
+            updated = true
+        end
+
+        if type(script.delay) ~= "number" or script.delay < 0 then
+            script.delay = 5
+            updated = true
+        end
+
+        if script.enabled == nil then
+            script.enabled = true
+            updated = true
+        end
+
+        if updated then
+            script.updatedAt = time()
+            fixed = fixed + 1
+        end
+    end
+
+    return { fixedScripts = fixed }
+end
+
+ScriptRunner.Storage = Storage

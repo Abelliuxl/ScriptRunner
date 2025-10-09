@@ -1,88 +1,244 @@
--- ScriptRunner - 执行引擎模块
--- 简化的Lua脚本执行器，依赖游戏本身的安全机制
+-- ScriptRunner - Execution engine module (Ace3 build)
+-- Executes stored scripts with optional scheduling helpers.
 
-local ScriptRunner = _G.ScriptRunner or {}
+local ScriptRunner = LibStub("AceAddon-3.0"):GetAddon("ScriptRunner")
+local Executor = ScriptRunner:NewModule("Executor", "AceEvent-3.0", "AceTimer-3.0")
 
--- 执行引擎模块
-ScriptRunner.Executor = {}
+local scheduledTimers = {}
 
--- 执行脚本
-function ScriptRunner.Executor:ExecuteScript(script, context)
-    if not script or not script.code then
-        return false, "无效的脚本"
-    end
-    
-    -- 检查脚本是否启用
-    if not script.enabled then
-        return false, "脚本已禁用"
-    end
-    
-    -- 使用 WoW 安全的代码加载方式
-    local func, loadError
-    if loadstring then
-        func, loadError = loadstring(script.code, script.name)
-    elseif _G.load then
-        func, loadError = _G.load(script.code, script.name)
-    else
-        -- 如果都不可用，使用 RunScript 作为最后的备选方案
-        local success, execResult = pcall(function()
-            -- 创建一个临时的全局函数来执行代码
-            local tempFunc = function()
-                return assert(loadstring or load, "代码加载功能不可用")(script.code, script.name)
-            end
-            return tempFunc()
-        end)
-        
-        if not success then
-            -- 尝试直接使用 RunScript（仅用于简单脚本）
-            if script.code and string.len(script.code) < 1000 then
-                local runSuccess, runError = pcall(function()
-                    -- 创建一个包装函数来捕获输出
-                    local wrappedCode = "local function _tempScript() " .. script.code .. " end return _tempScript()"
-                    return assert(loadstring or load, "代码加载功能不可用")(wrappedCode, script.name)
-                end)
-                
-                if runSuccess then
-                    func = runError
-                    loadError = nil
-                else
-                    return false, "代码加载失败: " .. tostring(runError)
-                end
-            else
-                return false, "代码加载功能不可用且脚本过长"
-            end
-        else
-            func = execResult
-        end
-    end
-    
-    if not func then
-        return false, "代码编译错误: " .. tostring(loadError)
-    end
-    
-    -- 执行函数
-    local success, execResult = pcall(func)
-    
-    if success then
-        if ScriptRunner.Storage:GetSettings().debug then
-            print("|cff00ff00ScriptRunner|r: 脚本 '" .. script.name .. "' 执行成功")
-        end
-        return true, execResult
-    else
-        print("|cffff0000ScriptRunner|r: 脚本 '" .. script.name .. "' 执行失败: " .. execResult)
-        return false, execResult
+local executionStats = {
+    totalExecutions = 0,
+    successfulExecutions = 0,
+    failedExecutions = 0,
+    lastExecutionTime = nil,
+}
+
+local function cancelTimer(self, scriptID)
+    local handle = scheduledTimers[scriptID]
+    if handle then
+        self:CancelTimer(handle)
+        scheduledTimers[scriptID] = nil
     end
 end
 
--- 自动执行所有自动模式的脚本
-function ScriptRunner.Executor:ExecuteAutoScripts()
+function Executor:OnInitialize()
+end
+
+function Executor:OnEnable()
+    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_TOGGLED", "OnScriptToggled")
+    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_UPDATED", "OnScriptUpdated")
+end
+
+function Executor:OnDisable()
+    self:CancelAllTimers()
+    wipe(scheduledTimers)
+end
+
+function Executor:OnScriptToggled(_, scriptID, script)
+    cancelTimer(self, scriptID)
+
+    if script.enabled then
+        if script.mode == "auto" then
+            self:ScheduleAutoScript(scriptID)
+        elseif script.mode == "delay" then
+            self:ScheduleDelayedScript(script)
+        end
+    end
+end
+
+function Executor:OnScriptUpdated(_, scriptID, script, oldValues)
+    if oldValues.mode and oldValues.mode ~= script.mode then
+        cancelTimer(self, scriptID)
+    elseif oldValues.delay and oldValues.delay ~= script.delay then
+        cancelTimer(self, scriptID)
+    end
+
+    if script.enabled then
+        if script.mode == "auto" then
+            self:ScheduleAutoScript(scriptID)
+        elseif script.mode == "delay" then
+            self:ScheduleDelayedScript(script)
+        end
+    end
+end
+
+function Executor:CreateExecutionEnvironment(script, context)
+    local env = {
+        print = print,
+        pairs = pairs,
+        ipairs = ipairs,
+        type = type,
+        tostring = tostring,
+        tonumber = tonumber,
+        string = string,
+        table = table,
+        math = math,
+        coroutine = coroutine,
+        date = date,
+        time = time,
+        ScriptRunner = ScriptRunner,
+        script = script,
+        context = context or {},
+    }
+
+    setmetatable(env, {
+        __index = _G,
+        __newindex = function(tbl, key, value)
+            rawset(tbl, key, value)
+        end,
+    })
+
+    return env
+end
+
+function Executor:ExecuteScript(script, context)
+    if not script or type(script.code) ~= "string" then
+        return false, "Invalid script."
+    end
+
+    if not script.enabled then
+        return false, "Script is disabled."
+    end
+
+    executionStats.totalExecutions = executionStats.totalExecutions + 1
+    executionStats.lastExecutionTime = time()
+
+    local env = self:CreateExecutionEnvironment(script, context)
+
+    local chunk, loadError
+    if loadstring then
+        chunk, loadError = loadstring(script.code, script.name or "ScriptRunner")
+    else
+        chunk, loadError = load(script.code, script.name or "ScriptRunner")
+    end
+
+    if not chunk then
+        executionStats.failedExecutions = executionStats.failedExecutions + 1
+        self:SendMessage("SCRIPTRUNNER_SCRIPT_EXECUTED", script.id, script, loadError, false)
+        return false, "Syntax error: " .. tostring(loadError)
+    end
+
+    if setfenv then
+        setfenv(chunk, env)
+    end
+
+    local ok, result = pcall(chunk)
+    if ok then
+        executionStats.successfulExecutions = executionStats.successfulExecutions + 1
+        self:SendMessage("SCRIPTRUNNER_SCRIPT_EXECUTED", script.id, script, result, true)
+        return true, result
+    end
+
+    executionStats.failedExecutions = executionStats.failedExecutions + 1
+    self:SendMessage("SCRIPTRUNNER_SCRIPT_EXECUTED", script.id, script, result, false)
+    return false, result
+end
+
+function Executor:ExecuteManualScript(scriptID)
+    if not ScriptRunner.Storage then
+        return false, "Storage module is not loaded."
+    end
+
+    local script = ScriptRunner.Storage:GetScript(scriptID)
+    if not script then
+        return false, "Script does not exist."
+    end
+
+    if script.mode ~= "manual" then
+        return false, "Script is not set to manual mode."
+    end
+
+    return self:ExecuteScript(script)
+end
+
+function Executor:ValidateScript(code)
+    if not code or code == "" then
+        return false, "Code is empty."
+    end
+
+    local chunk, loadError
+    if loadstring then
+        chunk, loadError = loadstring(code, "ScriptRunnerValidation")
+    else
+        chunk, loadError = load(code, "ScriptRunnerValidation")
+    end
+
+    if not chunk then
+        return false, "Syntax error: " .. tostring(loadError)
+    end
+
+    return true, "Syntax OK"
+end
+
+function Executor:ScheduleAutoScript(scriptID)
+    if not ScriptRunner.Storage then
+        return false, "Storage module is not loaded."
+    end
+
+    local script = ScriptRunner.Storage:GetScript(scriptID)
+    if not script or not script.enabled or script.mode ~= "auto" then
+        return false
+    end
+
+    cancelTimer(self, scriptID)
+
+    local interval = tonumber(script.delay) or 30
+    if interval <= 0 then
+        interval = 30
+    end
+
+    scheduledTimers[scriptID] = self:ScheduleRepeatingTimer(function()
+        local current = ScriptRunner.Storage and ScriptRunner.Storage:GetScript(scriptID)
+        if current and current.enabled and current.mode == "auto" then
+            self:ExecuteScript(current)
+        else
+            cancelTimer(self, scriptID)
+        end
+    end, interval)
+
+    return true
+end
+
+function Executor:ScheduleDelayedScript(script)
+    if not script or script.mode ~= "delay" then
+        return false
+    end
+
+    cancelTimer(self, script.id)
+
+    local delay = tonumber(script.delay) or 5
+    if delay < 0 then
+        delay = 0
+    end
+
+    scheduledTimers[script.id] = self:ScheduleTimer(function()
+        local current = ScriptRunner.Storage and ScriptRunner.Storage:GetScript(script.id)
+        if current and current.enabled and current.mode == "delay" then
+            self:ExecuteScript(current)
+        end
+        cancelTimer(self, script.id)
+    end, delay)
+
+    return true
+end
+
+function Executor:CancelScriptExecution(scriptID)
+    cancelTimer(self, scriptID)
+end
+
+function Executor:ExecuteAutoScripts()
+    if not ScriptRunner.Storage then
+        print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
+        return
+    end
+
     local scripts = ScriptRunner.Storage:GetAllScripts()
     local executedCount = 0
     local errorCount = 0
-    
+
     for _, script in pairs(scripts) do
         if script.enabled and script.mode == "auto" then
-            local success, result = self:ExecuteScript(script)
+            local success = self:ExecuteScript(script)
             if success then
                 executedCount = executedCount + 1
             else
@@ -90,165 +246,73 @@ function ScriptRunner.Executor:ExecuteAutoScripts()
             end
         end
     end
-    
+
     if executedCount > 0 or errorCount > 0 then
-        print(string.format("|cff00ff00ScriptRunner|r: 自动执行完成 - 成功: %d, 失败: %d", executedCount, errorCount))
+        print(string.format("|cff00ff00ScriptRunner|r: Auto run finished - success: %d, failed: %d", executedCount, errorCount))
     end
 end
 
--- 延迟执行脚本
-function ScriptRunner.Executor:ExecuteDelayedScript(script, delay)
-    if not script or script.mode ~= "delay" then
-        return false, "无效的延迟脚本"
+function Executor:ScheduleDelayedScripts()
+    if not ScriptRunner.Storage then
+        print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
+        return
     end
-    
-    local actualDelay = tonumber(script.delay) or delay or 5
-    if actualDelay <= 0 then
-        actualDelay = 5
-    end
-    
-    C_Timer.After(actualDelay, function()
-        local success, result = self:ExecuteScript(script)
-        if success then
-            print(string.format("|cff00ff00ScriptRunner|r: 延迟脚本 '%s' 执行成功", script.name))
-        else
-            print(string.format("|cffff0000ScriptRunner|r: 延迟脚本 '%s' 执行失败: %s", script.name, result))
-        end
-    end)
-    
-    print(string.format("|cff00ff00ScriptRunner|r: 延迟脚本 '%s' 已安排在 %.1f 秒后执行", script.name, actualDelay))
-    return true
-end
 
--- 安排所有延迟执行的脚本
-function ScriptRunner.Executor:ScheduleDelayedScripts()
     local scripts = ScriptRunner.Storage:GetAllScripts()
-    local scheduledCount = 0
-    
     for _, script in pairs(scripts) do
         if script.enabled and script.mode == "delay" then
-            self:ExecuteDelayedScript(script)
-            scheduledCount = scheduledCount + 1
+            self:ScheduleDelayedScript(script)
         end
-    end
-    
-    if scheduledCount > 0 then
-        print(string.format("|cff00ff00ScriptRunner|r: 已安排 %d 个延迟脚本", scheduledCount))
     end
 end
 
--- 手动执行脚本
-function ScriptRunner.Executor:ExecuteManualScript(scriptID)
-    local script = ScriptRunner.Storage:GetScript(scriptID)
-    if not script then
-        return false, "脚本不存在"
+function Executor:BatchExecute(scriptIDs, parallel)
+    if not ScriptRunner.Storage then
+        return false, "Storage module is not loaded."
     end
-    
-    if script.mode ~= "manual" then
-        return false, "该脚本不是手动执行模式"
-    end
-    
-    return self:ExecuteScript(script)
-end
 
--- 验证脚本语法
-function ScriptRunner.Executor:ValidateScript(code)
-    if not code or code == "" then
-        return false, "代码为空"
+    if type(scriptIDs) ~= "table" then
+        return false, "scriptIDs must be a table."
     end
-    
-    -- 使用 WoW 安全的代码验证方式
-    local func, loadError
-    if loadstring then
-        func, loadError = loadstring(code, "validation")
-    elseif _G.load then
-        func, loadError = _G.load(code, "validation")
-    else
-        -- 如果都不可用，使用基本的语法检查
-        -- 检查是否包含基本的 Lua 语法结构
-        local hasBasicSyntax = true
-        local errorMessage = ""
-        
-        -- 检查括号匹配
-        local openParen = 0
-        local openBrace = 0
-        local openBracket = 0
-        
-        for i = 1, string.len(code) do
-            local char = string.sub(code, i, i)
-            if char == "(" then
-                openParen = openParen + 1
-            elseif char == ")" then
-                openParen = openParen - 1
-                if openParen < 0 then
-                    hasBasicSyntax = false
-                    errorMessage = "括号不匹配"
-                    break
-                end
-            elseif char == "{" then
-                openBrace = openBrace + 1
-            elseif char == "}" then
-                openBrace = openBrace - 1
-                if openBrace < 0 then
-                    hasBasicSyntax = false
-                    errorMessage = "大括号不匹配"
-                    break
-                end
-            elseif char == "[" then
-                openBracket = openBracket + 1
-            elseif char == "]" then
-                openBracket = openBracket - 1
-                if openBracket < 0 then
-                    hasBasicSyntax = false
-                    errorMessage = "方括号不匹配"
-                    break
-                end
-            end
-        end
-        
-        if hasBasicSyntax and (openParen ~= 0 or openBrace ~= 0 or openBracket ~= 0) then
-            hasBasicSyntax = false
-            errorMessage = "括号不匹配"
-        end
-        
-        if hasBasicSyntax then
-            -- 进行更基本的检查
-            if string.find(code, "function%s+%w+%s*%(") or 
-               string.find(code, "local%s+function%s+%w+%s*%(") or
-               string.find(code, "if%s+.-%s+then") or
-               string.find(code, "for%s+.-%s+do") or
-               string.find(code, "while%s+.-%s+do") or
-               string.find(code, "repeat") or
-               string.find(code, "return") or
-               string.find(code, "print") or
-               string.find(code, "MessageFrame") then
-                return true, "基本语法检查通过（代码加载功能不可用，仅进行基础检查）"
+
+    local results = {}
+    local successCount = 0
+    local errorCount = 0
+
+    local function run(scriptID)
+        local script = ScriptRunner.Storage:GetScript(scriptID)
+        if script then
+            local success, result = self:ExecuteScript(script)
+            results[scriptID] = { success = success, result = result }
+            if success then
+                successCount = successCount + 1
             else
-                -- 如果没有找到任何 Lua 关键字，可能是纯文本
-                return true, "基本语法检查通过（代码加载功能不可用，仅进行基础检查）"
+                errorCount = errorCount + 1
             end
         else
-            return false, "语法错误: " .. errorMessage
+            results[scriptID] = { success = false, result = "Script does not exist." }
+            errorCount = errorCount + 1
         end
     end
-    
-    if not func then
-        return false, "语法错误: " .. tostring(loadError)
+
+    if parallel then
+        for _, scriptID in ipairs(scriptIDs) do
+            self:ScheduleTimer(function()
+                run(scriptID)
+            end, 0)
+        end
+    else
+        for _, scriptID in ipairs(scriptIDs) do
+            run(scriptID)
+        end
     end
-    
-    return true, "语法检查通过"
+
+    self:SendMessage("SCRIPTRUNNER_BATCH_EXECUTION", scriptIDs, results, successCount, errorCount)
+    return results, successCount, errorCount
 end
 
--- 获取执行统计信息
-function ScriptRunner.Executor:GetExecutionStats()
-    -- 这里可以添加执行统计功能
-    return {
-        totalExecutions = 0,
-        successfulExecutions = 0,
-        failedExecutions = 0,
-        lastExecutionTime = nil
-    }
+function Executor:GetExecutionStats()
+    return executionStats
 end
 
--- 注册执行引擎模块到全局
-_G.ScriptRunner = ScriptRunner
+ScriptRunner.Executor = Executor

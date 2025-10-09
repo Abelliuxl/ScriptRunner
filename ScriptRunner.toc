@@ -7,6 +7,29 @@
 ## Category-enUS: Other
 ## SavedVariables: ScriptRunnerDB
 
+# Ace3 核心依赖
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+
+# Ace3 基础库
+Libs\AceAddon-3.0\AceAddon-3.0.lua
+Libs\AceConsole-3.0\AceConsole-3.0.lua
+Libs\AceEvent-3.0\AceEvent-3.0.lua
+Libs\AceTimer-3.0\AceTimer-3.0.lua
+
+# Ace3 数据库
+Libs\AceDB-3.0\AceDB-3.0.lua
+Libs\AceDBOptions-3.0\AceDBOptions-3.0.lua
+
+# Ace3 GUI
+Libs\AceGUI-3.0\AceGUI-3.0.xml
+
+# Ace3 配置系统 (按依赖顺序)
+Libs\AceConfig-3.0\AceConfigRegistry-3.0\AceConfigRegistry-3.0.lua
+Libs\AceConfig-3.0\AceConfigCmd-3.0\AceConfigCmd-3.0.lua
+Libs\AceConfig-3.0\AceConfigDialog-3.0\AceConfigDialog-3.0.lua
+Libs\AceConfig-3.0\AceConfig-3.0.lua
+
 # 核心文件
 ScriptRunner.lua
 

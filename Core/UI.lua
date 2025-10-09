@@ -1,349 +1,408 @@
--- ScriptRunner - 用户界面模块
--- 负责创建和管理插件的图形界面
+﻿-- ScriptRunner - UI module (Ace3 build)
+-- Uses AceGUI to build the management window
 
-local ScriptRunner = _G.ScriptRunner or {}
+local ScriptRunner = LibStub("AceAddon-3.0"):GetAddon("ScriptRunner")
 
--- UI模块
-ScriptRunner.UI = {}
+local AceGUI = LibStub("AceGUI-3.0")
+local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 
--- UI状态
+local UI = ScriptRunner:NewModule("UI", "AceEvent-3.0", "AceConsole-3.0")
+
 local UIState = {
     isVisible = false,
     selectedScriptID = nil,
-    isEditing = false,
-    currentTheme = "default"
+    currentTab = "scripts",
+    frame = nil,
+    scriptListScrollFrame = nil,
+    editorContainer = nil,
+    editorWidgets = nil,
 }
 
--- 颜色主题
-local Themes = {
-    default = {
-        background = {0.1, 0.1, 0.1, 0.95},
-        header = {0.2, 0.2, 0.2, 1},
-        button = {0.3, 0.3, 0.3, 1},
-        buttonHover = {0.4, 0.4, 0.4, 1},
-        buttonPressed = {0.2, 0.2, 0.2, 1},
-        text = {1, 1, 1, 1},
-        textDisabled = {0.5, 0.5, 0.5, 1},
-        accent = {0.2, 0.6, 1, 1},
-        success = {0.2, 0.8, 0.2, 1},
-        error = {0.8, 0.2, 0.2, 1},
-        warning = {0.8, 0.6, 0.2, 1}
-    }
-}
-
--- 主窗口
-local MainWindow = nil
-local ScriptListFrame = nil
-local EditorFrame = nil
-local ConfigFrame = nil
-
--- 创建主窗口
-local function CreateMainWindow()
-    if MainWindow then return MainWindow end
-    
-    MainWindow = CreateFrame("Frame", "LuaManagerMainWindow", UIParent, "BackdropTemplate")
-    MainWindow:SetSize(800, 600)
-    MainWindow:SetPoint("CENTER")
-    MainWindow:SetFrameStrata("DIALOG")
-    MainWindow:SetMovable(true)
-    MainWindow:EnableMouse(true)
-    MainWindow:RegisterForDrag("LeftButton")
-    MainWindow:SetScript("OnDragStart", MainWindow.StartMoving)
-    MainWindow:SetScript("OnDragStop", MainWindow.StopMovingOrSizing)
-    
-    -- 设置背景
-    MainWindow:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = {left = 11, right = 12, top = 12, bottom = 11}
-    })
-    
-    -- 标题栏
-    local titleBar = CreateFrame("Frame", nil, MainWindow, "BackdropTemplate")
-    titleBar:SetSize(800, 32)
-    titleBar:SetPoint("TOP")
-    titleBar:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = {left = 11, right = 12, top = 12, bottom = 11}
-    })
-    titleBar:SetBackdropColor(0.2, 0.2, 0.2, 1)
-    
-    local title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("CENTER", titleBar, "CENTER")
-    title:SetText("ScriptRunner - 脚本管理器")
-    
-    -- 关闭按钮
-    local closeButton = CreateFrame("Button", nil, MainWindow, "UIPanelCloseButton")
-    closeButton:SetPoint("TOPRIGHT", -5, -5)
-    closeButton:SetScript("OnClick", function()
-        ScriptRunner.UI:Hide()
-    end)
-    
-    -- 创建子区域
-    CreateScriptListFrame()
-    CreateEditorFrame()
-    CreateConfigFrame()
-    
-    return MainWindow
+function UI:OnInitialize()
 end
 
--- 创建脚本列表区域
-function CreateScriptListFrame()
-    ScriptListFrame = CreateFrame("Frame", nil, MainWindow, "BackdropTemplate")
-    ScriptListFrame:SetSize(250, 550)
-    ScriptListFrame:SetPoint("TOPLEFT", 10, -40)
-    ScriptListFrame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = {left = 4, right = 4, top = 4, bottom = 4}
-    })
-    ScriptListFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
-    
-    -- 标题
-    local listTitle = ScriptListFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    listTitle:SetPoint("TOP", 0, -10)
-    listTitle:SetText("脚本列表")
-    
-    -- 新建按钮
-    local newButton = CreateFrame("Button", nil, ScriptListFrame, "UIPanelButtonTemplate")
-    newButton:SetSize(60, 25)
-    newButton:SetPoint("TOPRIGHT", -10, -10)
-    newButton:SetText("新建")
-    newButton:SetScript("OnClick", function()
-        ScriptRunner.UI:CreateNewScript()
-    end)
-    
-    -- 脚本列表滚动区域
-    local scrollFrame = CreateFrame("ScrollFrame", nil, ScriptListFrame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetSize(230, 480)
-    scrollFrame:SetPoint("TOP", 0, -40)
-    
-    local scrollChild = CreateFrame("Frame", nil, scrollFrame, "BackdropTemplate")
-    scrollChild:SetSize(230, 480)
-    scrollChild:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = {left = 4, right = 4, top = 4, bottom = 4}
-    })
-    scrollFrame:SetScrollChild(scrollChild)
-    
-    ScriptListFrame.scrollChild = scrollChild
-    ScriptListFrame.scrollFrame = scrollFrame
-    
-    ScriptRunner.UI:RefreshScriptList()
+function UI:OnEnable()
+    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_CREATED", "OnScriptChanged")
+    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_UPDATED", "OnScriptChanged")
+    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_DELETED", "OnScriptChanged")
+    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_TOGGLED", "OnScriptChanged")
 end
 
--- 创建编辑器区域
-function CreateEditorFrame()
-    EditorFrame = CreateFrame("Frame", nil, MainWindow, "BackdropTemplate")
-    EditorFrame:SetSize(520, 550)
-    EditorFrame:SetPoint("TOPRIGHT", -10, -40)
-    EditorFrame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = {left = 4, right = 4, top = 4, bottom = 4}
-    })
-    EditorFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
-    
-    -- 标题
-    local editorTitle = EditorFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    editorTitle:SetPoint("TOP", 0, -10)
-    editorTitle:SetText("ScriptRunner - 脚本编辑器")
-    
-    -- 脚本名称输入框
-    local nameLabel = EditorFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    nameLabel:SetPoint("TOPLEFT", 10, -40)
-    nameLabel:SetText("名称:")
-    
-    local nameEditBox = CreateFrame("EditBox", nil, EditorFrame, "InputBoxTemplate")
-    nameEditBox:SetSize(200, 32)
-    nameEditBox:SetPoint("TOPLEFT", 50, -45)
-    nameEditBox:SetAutoFocus(false)
-    EditorFrame.nameEditBox = nameEditBox
-    
-    -- 代码编辑区域
-    local codeLabel = EditorFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    codeLabel:SetPoint("TOPLEFT", 10, -85)
-    codeLabel:SetText("代码:")
-    
-    local codeScrollFrame = CreateFrame("ScrollFrame", nil, EditorFrame, "UIPanelScrollFrameTemplate")
-    codeScrollFrame:SetSize(480, 300)
-    codeScrollFrame:SetPoint("TOPLEFT", 10, -105)
-    
-    local codeEditBox = CreateFrame("EditBox", nil, codeScrollFrame, "BackdropTemplate")
-    codeEditBox:SetSize(480, 300)
-    codeEditBox:SetMultiLine(true)
-    codeEditBox:SetAutoFocus(false)
-    codeEditBox:SetFontObject("ChatFontNormal")
-    
-    -- 为代码输入框添加背景和边框
-    codeEditBox:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = {left = 3, right = 3, top = 3, bottom = 3}
-    })
-    codeEditBox:SetBackdropColor(0.05, 0.05, 0.05, 0.9)  -- 深色背景
-    codeEditBox:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)  -- 灰色边框
-    
-    codeScrollFrame:SetScrollChild(codeEditBox)
-    EditorFrame.codeEditBox = codeEditBox
-    
-    -- 配置区域
-    CreateConfigFrame()
-
-    -- 按钮容器
-    local ActionBar = CreateFrame("Frame", nil, EditorFrame)
-    ActionBar:SetSize(500, 40)
-    ActionBar:SetPoint("TOP", ConfigFrame, "BOTTOM", 0, 0)
-    
-    -- 操作按钮
-    local saveButton = CreateFrame("Button", nil, ActionBar, "UIPanelButtonTemplate")
-    saveButton:SetSize(80, 25)
-    saveButton:SetPoint("CENTER", -95, 0)
-    saveButton:SetText("保存")
-    saveButton:SetScript("OnClick", function()
-        ScriptRunner.UI:SaveCurrentScript()
-    end)
-    
-    local deleteButton = CreateFrame("Button", nil, ActionBar, "UIPanelButtonTemplate")
-    deleteButton:SetSize(80, 25)
-    deleteButton:SetPoint("CENTER", 0, 0)
-    deleteButton:SetText("删除")
-    deleteButton:SetScript("OnClick", function()
-        ScriptRunner.UI:DeleteCurrentScript()
-    end)
-    
-    local executeButton = CreateFrame("Button", nil, ActionBar, "UIPanelButtonTemplate")
-    executeButton:SetSize(80, 25)
-    executeButton:SetPoint("CENTER", 95, 0)
-    executeButton:SetText("执行")
-    executeButton:SetScript("OnClick", function()
-        ScriptRunner.UI:ExecuteCurrentScript()
-    end)
+function UI:OnDisable()
+    self:Hide()
 end
 
--- 创建配置区域
-function CreateConfigFrame()
-    if ConfigFrame then return end
-    
-    ConfigFrame = CreateFrame("Frame", nil, EditorFrame, "BackdropTemplate")
-    ConfigFrame:SetSize(500, 120)
-    ConfigFrame:SetPoint("TOPLEFT", 10, -415)
-    ConfigFrame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = {left = 2, right = 2, top = 2, bottom = 2}
-    })
-    ConfigFrame:SetBackdropColor(0.05, 0.05, 0.05, 0.8)
-    
-    -- 执行模式
-    local modeLabel = ConfigFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    modeLabel:SetPoint("TOPLEFT", 10, -10)
-    modeLabel:SetText("执行模式:")
-    
-    -- 自动执行单选按钮
-    local autoRadio = CreateFrame("CheckButton", nil, ConfigFrame, "UIRadioButtonTemplate")
-    autoRadio:SetPoint("TOPLEFT", 80, -10)
-    autoRadio.text = autoRadio:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    autoRadio.text:SetPoint("LEFT", 20, 0)
-    autoRadio.text:SetText("自动执行")
-    ConfigFrame.autoRadio = autoRadio
-    
-    -- 延迟执行单选按钮
-    local delayRadio = CreateFrame("CheckButton", nil, ConfigFrame, "UIRadioButtonTemplate")
-    delayRadio:SetPoint("TOPLEFT", 180, -10)
-    delayRadio.text = delayRadio:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    delayRadio.text:SetPoint("LEFT", 20, 0)
-    delayRadio.text:SetText("延迟执行")
-    ConfigFrame.delayRadio = delayRadio
-    
-    -- 手动执行单选按钮
-    local manualRadio = CreateFrame("CheckButton", nil, ConfigFrame, "UIRadioButtonTemplate")
-    manualRadio:SetPoint("TOPLEFT", 280, -10)
-    manualRadio.text = manualRadio:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    manualRadio.text:SetPoint("LEFT", 20, 0)
-    manualRadio.text:SetText("手动执行")
-    ConfigFrame.manualRadio = manualRadio
-    
-    -- 延迟时间输入
-    local delayLabel = ConfigFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    delayLabel:SetPoint("TOPLEFT", 80, -40)
-    delayLabel:SetText("延迟时间(秒):")
-    ConfigFrame.delayLabel = delayLabel
-    
-    local delayEditBox = CreateFrame("EditBox", nil, ConfigFrame, "InputBoxTemplate")
-    delayEditBox:SetSize(60, 32)
-    delayEditBox:SetPoint("TOPLEFT", 180, -45)
-    delayEditBox:SetAutoFocus(false)
-    delayEditBox:SetNumeric(true)
-    ConfigFrame.delayEditBox = delayEditBox
-    
-    -- 延迟时间输入框事件 - 立即保存
-    delayEditBox:SetScript("OnEnterPressed", function()
-        local delayValue = tonumber(delayEditBox:GetText()) or 5
-        ScriptRunner.UI:SaveDelayOnly(delayValue)
-        delayEditBox:ClearFocus()
-    end)
-    
-    delayEditBox:SetScript("OnEscapePressed", function()
-        -- 恢复原值
-        if UIState.selectedScriptID then
-            local script = ScriptRunner.Storage:GetScript(UIState.selectedScriptID)
-            if script then
-                delayEditBox:SetText(tostring(script.delay))
-            end
-        end
-        delayEditBox:ClearFocus()
-    end)
-    
-    
-    -- 设置单选按钮事件
-    autoRadio:SetScript("OnClick", function()
-        ScriptRunner.UI:SetExecutionMode("auto")
-        ScriptRunner.UI:SaveExecutionModeOnly("auto")
-    end)
-    
-    delayRadio:SetScript("OnClick", function()
-        ScriptRunner.UI:SetExecutionMode("delay")
-        ScriptRunner.UI:SaveExecutionModeOnly("delay")
-    end)
-    
-    manualRadio:SetScript("OnClick", function()
-        ScriptRunner.UI:SetExecutionMode("manual")
-        ScriptRunner.UI:SaveExecutionModeOnly("manual")
-    end)
-    
-    EditorFrame.configFrame = ConfigFrame
-end
-
--- 显示UI
-function ScriptRunner.UI:Show()
-    if not MainWindow then
-        CreateMainWindow()
+function UI:OnScriptChanged()
+    if UIState.isVisible and UIState.currentTab == "scripts" then
+        self:RefreshScriptList()
     end
-    MainWindow:Show()
+end
+
+function UI:CreateMainWindow()
+    if UIState.frame then
+        return UIState.frame
+    end
+
+    local frame = AceGUI:Create("Frame")
+    frame:SetTitle("ScriptRunner")
+    frame:SetStatusText("就绪")
+    frame:SetLayout("Fill")
+    frame:SetWidth(900)
+    frame:SetHeight(650)
+    frame:SetCallback("OnClose", function()
+        self:Hide()
+    end)
+
+    local tabGroup = AceGUI:Create("TabGroup")
+    tabGroup:SetLayout("Fill")
+    tabGroup:SetTabs({
+        { text = "脚本管理", value = "scripts" },
+        { text = "设置", value = "settings" },
+    })
+    tabGroup:SetCallback("OnGroupSelected", function(container, event, group)
+        UIState.currentTab = group
+        self:UpdateTabContent(container, group)
+    end)
+    tabGroup:SelectTab("scripts")
+
+    frame:AddChild(tabGroup)
+
+    UIState.frame = frame
+    return frame
+end
+
+function UI:UpdateTabContent(container, group)
+    container:ReleaseChildren()
+
+    if group ~= "scripts" then
+        UIState.scriptListScrollFrame = nil
+        UIState.editorContainer = nil
+        UIState.editorWidgets = nil
+    end
+
+    if group == "scripts" then
+        self:CreateScriptsTab(container)
+    elseif group == "settings" then
+        self:CreateSettingsTab(container)
+    end
+end
+
+function UI:CreateScriptsTab(container)
+    local hGroup = AceGUI:Create("SimpleGroup")
+    hGroup:SetLayout("Flow")
+    hGroup:SetFullWidth(true)
+    hGroup:SetFullHeight(true)
+    container:AddChild(hGroup)
+
+    local leftGroup = AceGUI:Create("SimpleGroup")
+    leftGroup:SetRelativeWidth(0.32)
+    leftGroup:SetFullHeight(true)
+    leftGroup:SetLayout("List")
+    hGroup:AddChild(leftGroup)
+
+    local listHeader = AceGUI:Create("SimpleGroup")
+    listHeader:SetLayout("Flow")
+    listHeader:SetFullWidth(true)
+    listHeader:SetHeight(40)
+    leftGroup:AddChild(listHeader)
+
+    local titleLabel = AceGUI:Create("Label")
+    titleLabel:SetText("脚本列表")
+    titleLabel:SetWidth(150)
+    listHeader:AddChild(titleLabel)
+
+    local newButton = AceGUI:Create("Button")
+    newButton:SetText("新建脚本")
+    newButton:SetWidth(130)
+    newButton:SetCallback("OnClick", function()
+        self:CreateNewScript()
+    end)
+    listHeader:AddChild(newButton)
+
+    local scrollFrame = AceGUI:Create("ScrollFrame")
+    scrollFrame:SetLayout("List")
+    scrollFrame:SetFullWidth(true)
+    scrollFrame:SetFullHeight(true)
+    leftGroup:AddChild(scrollFrame)
+
+    UIState.scriptListScrollFrame = scrollFrame
+    self:PopulateScriptList(scrollFrame)
+
+    local rightGroup = AceGUI:Create("SimpleGroup")
+    rightGroup:SetRelativeWidth(0.68)
+    rightGroup:SetFullHeight(true)
+    rightGroup:SetLayout("Fill")
+    hGroup:AddChild(rightGroup)
+
+    UIState.editorContainer = rightGroup
+    self:CreateEditorPanel(rightGroup)
+end
+
+local function scriptSummaryText(script)
+    local status = script.enabled and "|cff00ff00[启用]|r" or "|cffff0000[禁用]|r"
+    local mode = "|cffcccccc[手动]|r"
+    if script.mode == "auto" then
+        mode = "|cff00ccff[自动]|r"
+    elseif script.mode == "delay" then
+        mode = string.format("|cffffcc00[延迟:%ds]|r", tonumber(script.delay) or 0)
+    end
+    return string.format("%s %s %s", status, mode, script.name or "未命名")
+end
+
+function UI:PopulateScriptList(scrollFrame)
+    scrollFrame:ReleaseChildren()
+
+    if not ScriptRunner.Storage then
+        local errorLabel = AceGUI:Create("Label")
+        errorLabel:SetText("|cffff0000存储模块未加载|r")
+        scrollFrame:AddChild(errorLabel)
+        return
+    end
+
+    local scripts = ScriptRunner.Storage:GetAllScripts()
+    if not scripts or next(scripts) == nil then
+        local emptyLabel = AceGUI:Create("Label")
+        emptyLabel:SetText("暂无脚本\n点击“新建脚本”添加新条目")
+        emptyLabel:SetColor(1, 1, 1)
+        scrollFrame:AddChild(emptyLabel)
+        return
+    end
+
+    for id, script in pairs(scripts) do
+        local button = AceGUI:Create("InteractiveLabel")
+        button:SetText(scriptSummaryText(script))
+        button:SetFullWidth(true)
+
+        if UIState.selectedScriptID == id then
+            button:SetColor(0.2, 0.6, 1)
+        else
+            button:SetColor(1, 1, 1)
+        end
+
+        button:SetCallback("OnClick", function()
+            self:SelectScript(id)
+            self:PopulateScriptList(scrollFrame)
+        end)
+
+        scrollFrame:AddChild(button)
+    end
+end
+
+function UI:CreateEditorPanel(container)
+    container:ReleaseChildren()
+    container:SetLayout("Fill")
+    UIState.editorWidgets = nil
+
+    local host
+    if container.type == "ScrollFrame" then
+        host = container
+    else
+        local scroll = AceGUI:Create("ScrollFrame")
+        scroll:SetLayout("List")
+        scroll:SetFullWidth(true)
+        scroll:SetFullHeight(true)
+        container:AddChild(scroll)
+        host = scroll
+    end
+
+    if not UIState.selectedScriptID then
+        local info = AceGUI:Create("Label")
+        info:SetText("请在左侧选择一个脚本进行编辑")
+        info:SetColor(1, 1, 1)
+        host:AddChild(info)
+        return
+    end
+
+    if not ScriptRunner.Storage then
+        local errorLabel = AceGUI:Create("Label")
+        errorLabel:SetText("|cffff0000存储模块未加载|r")
+        host:AddChild(errorLabel)
+        return
+    end
+
+    local script = ScriptRunner.Storage:GetScript(UIState.selectedScriptID)
+    if not script then
+        UIState.selectedScriptID = nil
+        local missingLabel = AceGUI:Create("Label")
+        missingLabel:SetText("|cffff0000未找到选中的脚本|r")
+        missingLabel:SetColor(1, 0.2, 0.2)
+        host:AddChild(missingLabel)
+        return
+    end
+
+    local vGroup = AceGUI:Create("SimpleGroup")
+    vGroup:SetLayout("Flow")
+    vGroup:SetFullWidth(true)
+    host:AddChild(vGroup)
+
+    local nameGroup = AceGUI:Create("SimpleGroup")
+    nameGroup:SetLayout("Flow")
+    nameGroup:SetFullWidth(true)
+    nameGroup:SetHeight(40)
+    vGroup:AddChild(nameGroup)
+
+    local nameLabel = AceGUI:Create("Label")
+    nameLabel:SetText("名称:")
+    nameLabel:SetWidth(60)
+    nameGroup:AddChild(nameLabel)
+
+    local nameEdit = AceGUI:Create("EditBox")
+    nameEdit:SetText(script.name or "")
+    nameEdit:SetWidth(220)
+    nameEdit:SetCallback("OnEnterPressed", function(_, value)
+        ScriptRunner.Storage:UpdateScript(script.id, { name = value })
+        self:RefreshScriptList()
+    end)
+    nameGroup:AddChild(nameEdit)
+
+    local enabledCheck = AceGUI:Create("CheckBox")
+    enabledCheck:SetLabel("启用")
+    enabledCheck:SetValue(script.enabled)
+    enabledCheck:SetWidth(80)
+    enabledCheck:SetCallback("OnValueChanged", function(_, _, value)
+        ScriptRunner.Storage:UpdateScript(script.id, { enabled = value })
+        self:RefreshScriptList()
+    end)
+    nameGroup:AddChild(enabledCheck)
+
+    local modeDropdown = AceGUI:Create("Dropdown")
+    modeDropdown:SetLabel("执行模式")
+    modeDropdown:SetList({
+        manual = "手动执行",
+        auto = "自动执行",
+        delay = "延迟执行",
+    })
+    modeDropdown:SetValue(script.mode or "manual")
+    modeDropdown:SetWidth(160)
+    modeDropdown:SetCallback("OnValueChanged", function(_, _, value)
+        ScriptRunner.Storage:UpdateScript(script.id, { mode = value })
+        self:RefreshScriptList()
+        self:CreateEditorPanel(container)
+    end)
+    nameGroup:AddChild(modeDropdown)
+
+    local delayEdit
+    if script.mode == "delay" then
+        local delayLabel = AceGUI:Create("Label")
+        delayLabel:SetText("延迟(秒):")
+        delayLabel:SetWidth(70)
+        nameGroup:AddChild(delayLabel)
+
+        delayEdit = AceGUI:Create("EditBox")
+        delayEdit:SetText(tostring(script.delay or 5))
+        delayEdit:SetWidth(80)
+        delayEdit:SetCallback("OnEnterPressed", function(_, value)
+            local delay = tonumber(value) or 5
+            if delay < 0 then delay = 0 end
+            ScriptRunner.Storage:UpdateScript(script.id, { delay = delay })
+            self:CreateEditorPanel(container)
+        end)
+        nameGroup:AddChild(delayEdit)
+    end
+
+    local codeLabel = AceGUI:Create("Label")
+    codeLabel:SetText("代码:")
+    codeLabel:SetFullWidth(true)
+    vGroup:AddChild(codeLabel)
+
+    local codeEdit = AceGUI:Create("MultiLineEditBox")
+    codeEdit:SetFullWidth(true)
+    codeEdit:SetNumLines(20)
+    codeEdit:SetLabel("")
+    codeEdit:SetText(script.code or "")
+    codeEdit:SetCallback("OnTextChanged", function(_, _, value)
+        script.code = value
+    end)
+    vGroup:AddChild(codeEdit)
+
+    local buttonGroup = AceGUI:Create("SimpleGroup")
+    buttonGroup:SetLayout("Flow")
+    buttonGroup:SetFullWidth(true)
+    vGroup:AddChild(buttonGroup)
+
+    local saveButton = AceGUI:Create("Button")
+    saveButton:SetText("保存")
+    saveButton:SetWidth(90)
+    saveButton:SetCallback("OnClick", function()
+        self:SaveCurrentScript()
+    end)
+    buttonGroup:AddChild(saveButton)
+
+    local runButton = AceGUI:Create("Button")
+    runButton:SetText("执行")
+    runButton:SetWidth(90)
+    runButton:SetCallback("OnClick", function()
+        self:ExecuteCurrentScript()
+    end)
+    buttonGroup:AddChild(runButton)
+
+    local deleteButton = AceGUI:Create("Button")
+    deleteButton:SetText("删除")
+    deleteButton:SetWidth(90)
+    deleteButton:SetCallback("OnClick", function()
+        self:DeleteCurrentScript()
+    end)
+    buttonGroup:AddChild(deleteButton)
+
+    UIState.editorWidgets = {
+        nameEdit = nameEdit,
+        enabledCheck = enabledCheck,
+        modeDropdown = modeDropdown,
+        delayEdit = delayEdit,
+        codeEdit = codeEdit,
+    }
+end
+
+function UI:CreateSettingsTab(container)
+    local vGroup = AceGUI:Create("SimpleGroup")
+    vGroup:SetLayout("List")
+    vGroup:SetFullWidth(true)
+    container:AddChild(vGroup)
+
+    local header = AceGUI:Create("Label")
+    header:SetText(string.format("ScriptRunner v%s", ScriptRunner.version or ""))
+    header:SetColor(1, 0.82, 0)
+    vGroup:AddChild(header)
+
+    local openConfigButton = AceGUI:Create("Button")
+    openConfigButton:SetText("Open Config Panel")
+    openConfigButton:SetCallback("OnClick", function()
+        AceConfigDialog:Open("ScriptRunner")
+    end)
+    vGroup:AddChild(openConfigButton)
+
+    local statsButton = AceGUI:Create("Button")
+    statsButton:SetText("Show Statistics")
+    statsButton:SetWidth(150)
+    statsButton:SetCallback("OnClick", function()
+        ScriptRunner:ShowStats()
+    end)
+    vGroup:AddChild(statsButton)
+
+    local validateButton = AceGUI:Create("Button")
+    validateButton:SetText("Validate All Scripts")
+    validateButton:SetWidth(150)
+    validateButton:SetCallback("OnClick", function()
+        ScriptRunner:ValidateAllScripts()
+    end)
+    vGroup:AddChild(validateButton)
+end
+
+function UI:Show()
+    local frame = self:CreateMainWindow()
+    frame:Show()
     UIState.isVisible = true
     self:RefreshScriptList()
 end
 
--- 隐藏UI
-function ScriptRunner.UI:Hide()
-    if MainWindow then
-        MainWindow:Hide()
+function UI:Hide()
+    if UIState.frame then
+        UIState.frame:Hide()
     end
     UIState.isVisible = false
 end
 
--- 切换UI显示状态
-function ScriptRunner.UI:Toggle()
+function UI:Toggle()
     if UIState.isVisible then
         self:Hide()
     else
@@ -351,265 +410,110 @@ function ScriptRunner.UI:Toggle()
     end
 end
 
--- 刷新脚本列表
-function ScriptRunner.UI:RefreshScriptList()
-    if not ScriptListFrame or not ScriptListFrame.scrollChild then return end
-    
-    -- 清空现有列表
-    for _, child in pairs({ScriptListFrame.scrollChild:GetChildren()}) do
-        child:Hide()
+function UI:RefreshScriptList()
+    if UIState.isVisible and UIState.currentTab == "scripts" and UIState.scriptListScrollFrame then
+        self:PopulateScriptList(UIState.scriptListScrollFrame)
     end
-    
-    local scripts = ScriptRunner.Storage:GetAllScripts()
-    local yOffset = 0
-    local buttonHeight = 25
-    
-    for scriptID, script in pairs(scripts) do
-        local button = CreateFrame("Button", nil, ScriptListFrame.scrollChild, "BackdropTemplate")
-        button:SetSize(230, buttonHeight)
-        button:SetPoint("TOP", 0, -yOffset)
-        
-        -- 背景
-        button:SetBackdrop({
-            bgFile = "Interface\\Buttons\\UI-Listbox-Highlight"
-        })
-        button:SetBackdropColor(0.2, 0.2, 0.2, 0.5)
-        
-        -- 选中高亮
-        if UIState.selectedScriptID == scriptID then
-            button:SetBackdropColor(0.2, 0.6, 1, 0.3)
-        end
-        
-        -- 脚本名称
-        local nameText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        nameText:SetPoint("LEFT", 5, 0)
-        nameText:SetText(script.name)
-        if not script.enabled then
-            nameText:SetTextColor(0.5, 0.5, 0.5)
-        end
-        
-        -- 模式标识
-        local modeText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        modeText:SetPoint("RIGHT", -35, 0)
-        local modeIcon = ""
-        if script.mode == "auto" then
-            modeIcon = "[A]"
-        elseif script.mode == "delay" then
-            modeIcon = "[D]"
-        else
-            modeIcon = "[M]"
-        end
-        modeText:SetText(modeIcon)
-        
-        -- 启用/禁用切换按钮
-        local toggleButton = CreateFrame("CheckButton", nil, button, "UICheckButtonTemplate")
-        toggleButton:SetSize(20, 20)
-        toggleButton:SetPoint("RIGHT", -8, 0)
-        toggleButton:SetChecked(script.enabled)
-        toggleButton:SetScript("OnClick", function()
-            local newEnabled = toggleButton:GetChecked()
-            -- 直接更新启用状态
-            local success, result = ScriptRunner.Storage:UpdateScript(scriptID, {
-                enabled = newEnabled
-            })
-            
-            if success then
-                print("|cff00ff00ScriptRunner|r: 脚本 '" .. script.name .. "' 已" .. (newEnabled and "启用" or "禁用"))
-                -- 刷新列表显示
-                ScriptRunner.UI:RefreshScriptList()
-            else
-                print("|cffff0000ScriptRunner|r: 启用状态更新失败: " .. result)
-                -- 恢复按钮状态
-                toggleButton:SetChecked(script.enabled)
-            end
-        end)
-        
-        -- 点击事件（选择脚本）
-        button:SetScript("OnClick", function()
-            ScriptRunner.UI:SelectScript(scriptID)
-        end)
-        
-        yOffset = yOffset + buttonHeight + 2
-    end
-    
-    ScriptListFrame.scrollChild:SetHeight(yOffset)
 end
 
--- 选择脚本
-function ScriptRunner.UI:SelectScript(scriptID)
+function UI:SelectScript(scriptID)
     UIState.selectedScriptID = scriptID
-    local script = ScriptRunner.Storage:GetScript(scriptID)
-    
-    if script then
-        -- 更新编辑器内容
-        EditorFrame.nameEditBox:SetText(script.name)
-        EditorFrame.codeEditBox:SetText(script.code)
-        
-        -- 更新配置
-        self:SetExecutionMode(script.mode)
-        ConfigFrame.delayEditBox:SetText(tostring(script.delay))
-        
-        -- 刷新列表显示
+
+    if UIState.isVisible and UIState.currentTab == "scripts" then
+        if UIState.editorContainer then
+            self:CreateEditorPanel(UIState.editorContainer)
+        end
         self:RefreshScriptList()
     end
 end
 
--- 创建新脚本
-function ScriptRunner.UI:CreateNewScript()
-    local newScript = ScriptRunner.Storage:CreateScript("新脚本", "", "manual", 5)
+function UI:CreateNewScript()
+    if not ScriptRunner.Storage then
+        print("|cffff0000ScriptRunner|r: 存储模块未加载")
+        return
+    end
+
+    local newScript = ScriptRunner.Storage:CreateScript("新脚本", "-- 新脚本\n", "manual", 5)
     self:SelectScript(newScript.id)
     self:RefreshScriptList()
 end
 
--- 保存当前脚本
-function ScriptRunner.UI:SaveCurrentScript()
-    if not UIState.selectedScriptID then return end
-    
-    local name = EditorFrame.nameEditBox:GetText()
-    local code = EditorFrame.codeEditBox:GetText()
-    local delay = tonumber(ConfigFrame.delayEditBox:GetText()) or 5
-    -- 从存储中获取当前启用状态，因为编辑器中不再有复选框
-    local script = ScriptRunner.Storage:GetScript(UIState.selectedScriptID)
-    local enabled = script and script.enabled or true
-    
-    -- 验证语法
-    local isValid, errorMsg = ScriptRunner.Executor:ValidateScript(code)
-    if not isValid then
-        print("|cffff0000ScriptRunner|r: " .. errorMsg)
+function UI:SaveCurrentScript()
+    if not UIState.selectedScriptID or not ScriptRunner.Storage then
         return
     end
-    
-    -- 获取当前模式
-    local mode = "manual"
-    if ConfigFrame.autoRadio:GetChecked() then
-        mode = "auto"
-    elseif ConfigFrame.delayRadio:GetChecked() then
-        mode = "delay"
+
+    local widgets = UIState.editorWidgets
+    if not widgets then
+        return
     end
-    
-    -- 保存脚本
-    local success, result = ScriptRunner.Storage:UpdateScript(UIState.selectedScriptID, {
-        name = name,
-        code = code,
-        mode = mode,
-        delay = delay,
-        enabled = enabled
-    })
-    
+
+    local updates = {}
+    if widgets.codeEdit then
+        updates.code = widgets.codeEdit:GetText() or ""
+    end
+    if widgets.modeDropdown then
+        updates.mode = widgets.modeDropdown:GetValue()
+    end
+    if widgets.delayEdit then
+        local delay = tonumber(widgets.delayEdit:GetText())
+        if delay and delay >= 0 then
+            updates.delay = delay
+        end
+    end
+
+    local success, result = ScriptRunner.Storage:UpdateScript(UIState.selectedScriptID, updates)
     if success then
         print("|cff00ff00ScriptRunner|r: 脚本已保存")
         self:RefreshScriptList()
     else
-        print("|cffff0000ScriptRunner|r: 保存失败: " .. result)
+        print("|cffff0000ScriptRunner|r: 保存失败: " .. tostring(result))
     end
 end
 
--- 删除当前脚本
-function ScriptRunner.UI:DeleteCurrentScript()
-    if not UIState.selectedScriptID then return end
-    
-    -- 简单确认（可以改为弹出确认框）
+function UI:DeleteCurrentScript()
+    if not UIState.selectedScriptID or not ScriptRunner.Storage then
+        return
+    end
+
     local script = ScriptRunner.Storage:GetScript(UIState.selectedScriptID)
-    if script then
-        ScriptRunner.Storage:DeleteScript(UIState.selectedScriptID)
-        print("|cff00ff00ScriptRunner|r: 脚本 '" .. script.name .. "' 已删除")
-        
-        UIState.selectedScriptID = nil
-        self:RefreshScriptList()
-        
-        -- 清空编辑器
-        EditorFrame.nameEditBox:SetText("")
-        EditorFrame.codeEditBox:SetText("")
+    if not script then
+        return
     end
+
+    local dialogKey = "SCRIPTRUNNER_DELETE_SCRIPT_CONFIRM"
+    StaticPopupDialogs[dialogKey] = {
+        text = string.format("确认删除脚本 '%s' 吗？\n\n该操作无法撤销。", script.name or "未命名"),
+        button1 = "删除",
+        button2 = "取消",
+        OnAccept = function()
+            ScriptRunner.Storage:DeleteScript(script.id)
+            print(string.format("|cff00ff00ScriptRunner|r: 脚本 '%s' 已删除", script.name or "未命名"))
+            UIState.selectedScriptID = nil
+            self:RefreshScriptList()
+            if UIState.editorContainer then
+                self:CreateEditorPanel(UIState.editorContainer)
+            end
+        end,
+        timeout = 0,
+        hideOnEscape = true,
+        preferredIndex = 3,
+    }
+
+    StaticPopup_Show(dialogKey)
 end
 
--- 执行当前脚本
-function ScriptRunner.UI:ExecuteCurrentScript()
-    if not UIState.selectedScriptID then return end
-    
+function UI:ExecuteCurrentScript()
+    if not UIState.selectedScriptID or not ScriptRunner.Executor then
+        return
+    end
+
     local success, result = ScriptRunner.Executor:ExecuteManualScript(UIState.selectedScriptID)
     if success then
         print("|cff00ff00ScriptRunner|r: 脚本执行成功")
     else
-        print("|cffff0000ScriptRunner|r: 脚本执行失败: " .. result)
+        print("|cffff0000ScriptRunner|r: 脚本执行失败: " .. tostring(result))
     end
 end
 
--- 设置执行模式
-function ScriptRunner.UI:SetExecutionMode(mode)
-    ConfigFrame.autoRadio:SetChecked(mode == "auto")
-    ConfigFrame.delayRadio:SetChecked(mode == "delay")
-    ConfigFrame.manualRadio:SetChecked(mode == "manual")
-    
-    -- 显示/隐藏延迟时间输入
-    if mode == "delay" then
-        ConfigFrame.delayEditBox:Show()
-        ConfigFrame.delayLabel:Show()
-    else
-        ConfigFrame.delayEditBox:Hide()
-        ConfigFrame.delayLabel:Hide()
-    end
-end
-
--- 只保存执行模式（立即生效）
-function ScriptRunner.UI:SaveExecutionModeOnly(mode)
-    if not UIState.selectedScriptID then return end
-    
-    -- 只更新执行模式
-    local success, result = ScriptRunner.Storage:UpdateScript(UIState.selectedScriptID, {
-        mode = mode
-    })
-    
-    if success then
-        print("|cff00ff00ScriptRunner|r: 执行模式已更新为 " .. 
-              (mode == "auto" and "自动执行" or 
-               mode == "delay" and "延迟执行" or "手动执行"))
-        -- 刷新列表显示
-        self:RefreshScriptList()
-    else
-        print("|cffff0000ScriptRunner|r: 执行模式更新失败: " .. result)
-    end
-end
-
--- 只保存延迟时间（立即生效）
-function ScriptRunner.UI:SaveDelayOnly(delay)
-    if not UIState.selectedScriptID then return end
-    
-    -- 验证延迟时间值
-    if delay <= 0 then
-        delay = 5
-        ConfigFrame.delayEditBox:SetText("5")
-    end
-    
-    -- 只更新延迟时间
-    local success, result = ScriptRunner.Storage:UpdateScript(UIState.selectedScriptID, {
-        delay = delay
-    })
-    
-    if success then
-        print("|cff00ff00ScriptRunner|r: 延迟时间已更新为 " .. delay .. " 秒")
-    else
-        print("|cffff0000ScriptRunner|r: 延迟时间更新失败: " .. result)
-    end
-end
-
--- 只保存启用状态（立即生效）
-function ScriptRunner.UI:SaveEnabledOnly(enabled)
-    if not UIState.selectedScriptID then return end
-    
-    -- 只更新启用状态
-    local success, result = ScriptRunner.Storage:UpdateScript(UIState.selectedScriptID, {
-        enabled = enabled
-    })
-    
-    if success then
-        print("|cff00ff00ScriptRunner|r: 脚本已" .. (enabled and "启用" or "禁用"))
-        -- 刷新列表显示
-        self:RefreshScriptList()
-    else
-        print("|cffff0000ScriptRunner|r: 启用状态更新失败: " .. result)
-    end
-end
-
--- 注册UI模块到全局
-_G.ScriptRunner = ScriptRunner
+ScriptRunner.UI = UI
