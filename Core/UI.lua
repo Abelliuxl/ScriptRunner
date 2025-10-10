@@ -14,6 +14,8 @@ local F
 local isVisible = false
 local currentTab = 1
 local selectedScriptID = nil
+local isDirty = false -- Track if current script has unsaved changes
+local originalScriptData = {} -- Store original script data for comparison
 
 local LIST_ENTRY_HEIGHT = 28
 local LIST_ENTRY_GAP = 4
@@ -43,6 +45,7 @@ function UI:Initialize(mainAddon)
             name = ScriptRunnerFrameScriptsPageEditorName,
             editorContainer = ScriptRunnerFrameScriptsPageEditorEditorContainer,
             saveButton = ScriptRunnerFrameScriptsPageEditorSave,
+            saveStatus = ScriptRunnerFrameScriptsPageEditorSaveStatus,
             deleteButton = ScriptRunnerFrameScriptsPageEditorDelete,
             newButton = ScriptRunnerFrameScriptsPageEditorNew,
             runButton = ScriptRunnerFrameScriptsPageEditorRun,
@@ -356,6 +359,15 @@ function UI:RefreshEditor()
         if F.editor.saveButton then F.editor.saveButton:Enable() end
         if F.editor.deleteButton then F.editor.deleteButton:Enable() end
         if F.editor.runButton then F.editor.runButton:Enable() end
+        
+        -- Store original data for comparison
+        originalScriptData = {
+            name = script.name or "",
+            code = script.code or "",
+            delay = tostring(script.delay or 5),
+            mode = script.mode or "manual"
+        }
+        isDirty = false
     else
         if F.editor.name then F.editor.name:SetText("") end
         if F.editor.code then F.editor.code:SetText("") end
@@ -365,10 +377,82 @@ function UI:RefreshEditor()
         if F.editor.saveButton then F.editor.saveButton:Disable() end
         if F.editor.deleteButton then F.editor.deleteButton:Disable() end
         if F.editor.runButton then F.editor.runButton:Disable() end
+        
+        -- Clear original data for new script
+        originalScriptData = {
+            name = "",
+            code = "",
+            delay = "5",
+            mode = "manual"
+        }
+        isDirty = false
     end
+    
+    -- Add change detection hooks
+    self:HookEditorChanges()
     
     if Editor and Editor.Resize then
         Editor:Resize()
+    end
+    
+    -- Update save status display
+    self:UpdateSaveStatus()
+end
+
+function UI:HookEditorChanges()
+    -- Hook name changes
+    if F.editor.name then
+        F.editor.name:SetScript("OnTextChanged", function()
+            self:CheckForChanges()
+        end)
+    end
+    
+    -- Hook code changes
+    if F.editor.code then
+        F.editor.code:SetScript("OnTextChanged", function()
+            self:CheckForChanges()
+        end)
+    end
+    
+    -- Hook delay changes
+    if F.editor.delayInput then
+        F.editor.delayInput:SetScript("OnTextChanged", function()
+            self:CheckForChanges()
+        end)
+    end
+end
+
+function UI:CheckForChanges()
+    if not selectedScriptID or not originalScriptData then return end
+    
+    local currentName = F.editor.name and F.editor.name:GetText() or ""
+    local currentCode = F.editor.code and F.editor.code:GetText() or ""
+    local currentDelay = F.editor.delayInput and F.editor.delayInput:GetText() or "5"
+    local currentMode = F.editor.modeDropdown and UIDropDownMenu_GetText(F.editor.modeDropdown) or "manual"
+    
+    -- Check if any field has changed
+    local hasChanges = (
+        currentName ~= originalScriptData.name or
+        currentCode ~= originalScriptData.code or
+        currentDelay ~= originalScriptData.delay or
+        currentMode ~= originalScriptData.mode
+    )
+    
+    if hasChanges ~= isDirty then
+        isDirty = hasChanges
+        self:UpdateSaveStatus()
+    end
+end
+
+function UI:UpdateSaveStatus()
+    if F.editor.saveStatus then
+        if isDirty then
+            F.editor.saveStatus:SetText("修改未保存")
+            F.editor.saveStatus:Show()
+        else
+            F.editor.saveStatus:SetText("")
+            F.editor.saveStatus:Hide()
+        end
     end
 end
 
@@ -387,7 +471,19 @@ function UI:SaveSelectedScript()
         mode = F.editor.modeDropdown and UIDropDownMenu_GetText(F.editor.modeDropdown) or "manual",
     }
     Storage:UpdateScript(selectedScriptID, updates)
-    self:Refresh()
+    
+    -- Update original data after successful save
+    originalScriptData = {
+        name = updates.name,
+        code = updates.code,
+        delay = tostring(updates.delay),
+        mode = updates.mode
+    }
+    isDirty = false
+    self:UpdateSaveStatus()
+    
+    -- Refresh script list to show updated name
+    self:RefreshScriptList()
 end
 
 function UI:DeleteSelectedScript()
@@ -432,7 +528,8 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.value = "manual"
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "manual")
-            F.editor.delayInput:SetEnabled(false) 
+            F.editor.delayInput:SetEnabled(false)
+            UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
 
@@ -441,7 +538,8 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.value = "auto"
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "auto")
-            F.editor.delayInput:SetEnabled(false) 
+            F.editor.delayInput:SetEnabled(false)
+            UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
 
@@ -451,6 +549,7 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "delay")
             F.editor.delayInput:SetEnabled(true)
+            UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
     end)

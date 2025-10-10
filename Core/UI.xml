@@ -32,7 +32,7 @@
                     <Anchor point="TOPLEFT" x="20" y="-40"/>
                 </Anchors>
             </Button>
-            <Button name="$parentTab2" inherits="UIPanelButtonTemplate" text="重载界面" id="2">
+            <Button name="$parentTab2" inherits="UIPanelButtonTemplate" text="Reload" id="2">
                 <Size x="100" y="32"/>
                 <Anchors>
                     <Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT" x="5" y="0"/>
@@ -100,6 +100,13 @@
                                     <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-4" y="4"/>
                                 </Anchors>
                             </Frame>
+                            
+                            <!-- Save Status Text -->
+                            <FontString name="$parentSaveStatus" inherits="GameFontRedSmall" text="">
+                                <Anchors>
+                                    <Anchor point="BOTTOM" relativeTo="$parentSave" relativePoint="TOP" x="0" y="2"/>
+                                </Anchors>
+                            </FontString>
                             
                             <!-- Controls -->
                             <Button name="$parentSave" inherits="UIPanelButtonTemplate" text="Save">
