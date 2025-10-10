@@ -73,6 +73,17 @@
                             <Anchor point="TOPLEFT" relativeTo="$parentListContainer" relativePoint="TOPRIGHT" x="10" y="0"/>
                             <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-20" y="15"/>
                         </Anchors>
+                        
+                        <Layers>
+                            <Layer level="ARTWORK">
+                                <!-- Save Status Text -->
+                                <FontString name="$parentSaveStatus" inherits="GameFontRedSmall" text="">
+                                    <Anchors>
+                                        <Anchor point="BOTTOM" relativeTo="$parentSave" relativePoint="TOP" x="0" y="2"/>
+                                    </Anchors>
+                                </FontString>
+                            </Layer>
+                        </Layers>
 
                         <Frames>
                             <!-- Name -->
@@ -100,13 +111,6 @@
                                     <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-4" y="4"/>
                                 </Anchors>
                             </Frame>
-                            
-                            <!-- Save Status Text -->
-                            <FontString name="$parentSaveStatus" inherits="GameFontRedSmall" text="">
-                                <Anchors>
-                                    <Anchor point="BOTTOM" relativeTo="$parentSave" relativePoint="TOP" x="0" y="2"/>
-                                </Anchors>
-                            </FontString>
                             
                             <!-- Controls -->
                             <Button name="$parentSave" inherits="UIPanelButtonTemplate" text="Save">
