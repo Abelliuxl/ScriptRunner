@@ -207,7 +207,7 @@ function UI:RefreshScriptList()
     local buttons = F.scriptListButtons
     local totalHeight = 0
 
-    local contentWidth = math.max(scrollFrame:GetWidth() - 20, 1)
+    local contentWidth = math.max(scrollFrame:GetWidth() - 0, 1)
     content:SetWidth(contentWidth)
 
     for index, entry in ipairs(ordered) do
@@ -290,7 +290,7 @@ function UI:RefreshScriptList()
         button.text:ClearAllPoints()
         button.text:SetPoint("LEFT", button, "LEFT", 12, 0)
         if button.toggle then
-            button.text:SetPoint("RIGHT", button.toggle, "LEFT", -8, 0)
+                button.text:SetPoint("RIGHT", button.toggle, "LEFT", 0, 0)
             button.toggle:SetChecked(entry.script.enabled)
         else
             button.text:SetPoint("RIGHT", button, "RIGHT", -12, 0)
