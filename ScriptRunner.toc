@@ -11,9 +11,11 @@
 ScriptRunner.lua
 
 # UI 布局
+Core\Editor.xml
 Core\UI.xml
 
 # 模块文件
 Core\Storage.lua
 Core\Executor.lua
+Core\Editor.lua
 Core\UI.lua

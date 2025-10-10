@@ -11,7 +11,7 @@ local ScriptRunner = {
 }
 _G[ADDON_NAME] = ScriptRunner
 
-local MANAGED_MODULES = { "Storage", "Executor", "UI" }
+local MANAGED_MODULES = { "Storage", "Executor", "Editor", "UI" }
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
