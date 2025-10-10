@@ -2,7 +2,7 @@
 ..\FrameXML\UI.xsd">
 
     <!-- Main Frame -->
-    <Frame name="ScriptRunnerFrame" parent="UIParent" movable="true" clampedToScreen="true" hidden="true" frameStrata="MEDIUM" toplevel="true" inherits="BackdropTemplate">
+    <Frame name="ScriptRunnerFrame" parent="UIParent" movable="true" enableMouse="true" clampedToScreen="true" hidden="true" frameStrata="MEDIUM" toplevel="true" inherits="BackdropTemplate">
         <Size x="900" y="650"/>
         <Anchors>
             <Anchor point="CENTER"/>
@@ -49,7 +49,7 @@
                 <Frames>
                     <!-- Script List -->
                     <Frame name="$parentListContainer" inherits="InsetFrameTemplate">
-                        <Size x="250" y="0"/>
+                        <Size x="250"/> <!-- Removed y="0" -->
                         <Anchors>
                             <Anchor point="TOPLEFT" x="0" y="-70"/>
                             <Anchor point="BOTTOMLEFT" x="0" y="15"/>
@@ -77,7 +77,7 @@
                         <Frames>
                             <!-- Name -->
                             <EditBox name="$parentName" inherits="InputBoxTemplate" autoFocus="false">
-                                <Size x="0" y="20"/>
+                                <Size x="100" y="20"/> <!-- Changed x from 0 to 100 -->
                                 <Anchors>
                                     <Anchor point="TOPLEFT" x="10" y="-5"/>
                                     <Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-10" y="-5"/>
@@ -85,30 +85,21 @@
                                 <FontString inherits="GameFontNormal" />
                             </EditBox>
                             
-                            <!-- Code Editor -->
-                            <Frame name="$parentCodeBackground" inherits="InsetFrameTemplate">
-                                <Anchors>
-                                    <Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="0" y="-12"/>
-                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-6" y="48"/>
+                            <!-- Code Editor Background Container -->
+                            <Frame name="$parentEditorBackground" inherits="InsetFrameTemplate">
+                                 <Anchors>
+                                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="10" y="-35"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-6" y="80"/>
                                 </Anchors>
                             </Frame>
-                            <ScrollFrame name="$parentCodeScroll" inherits="UIPanelScrollFrameTemplate">
-                                <Anchors>
-                                    <Anchor point="TOPLEFT" relativeTo="$parentCodeBackground" relativePoint="TOPLEFT" x="8" y="-8"/>
-                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentCodeBackground" relativePoint="BOTTOMRIGHT" x="-28" y="8"/>
+                            
+                            <!-- Code Editor Container -->
+                            <Frame name="$parentEditorContainer">
+                                 <Anchors>
+                                    <Anchor point="TOPLEFT" relativeTo="$parentEditorBackground" relativePoint="TOPLEFT" x="4" y="-4"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-4" y="4"/>
                                 </Anchors>
-                                <ScrollChild>
-                                    <EditBox name="$parentCode" letters="0" multiLine="true" autoFocus="false" enableMouse="true" countInvisibleLetters="false">
-                                        <Size x="1" y="1"/>
-                                        <FontString inherits="ChatFontNormal" justifyH="LEFT" justifyV="TOP"/>
-                                        <Scripts>
-                                            <OnEscapePressed>
-                                                self:ClearFocus()
-                                            </OnEscapePressed>
-                                        </Scripts>
-                                    </EditBox>
-                                </ScrollChild>
-                            </ScrollFrame>
+                            </Frame>
                             
                             <!-- Controls -->
                             <Button name="$parentSave" inherits="UIPanelButtonTemplate" text="Save">
@@ -174,5 +165,4 @@
             </Frame>
         </Frames>
     </Frame>
-
 </Ui>

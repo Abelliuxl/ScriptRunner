@@ -1,0 +1,35 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <Frame name="ScriptRunnerEditorFrame" virtual="true">
+        <Frames>
+            <ScrollFrame name="$parentScroll" inherits="UIPanelScrollFrameTemplate">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="0" y="0"/>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="0" y="0"/>
+                </Anchors>
+                <ScrollChild>
+                    <EditBox name="$parentCode" multiLine="true" autoFocus="false">
+                        <Size x="1" y="1"/>
+                        <FontString inherits="ChatFontNormal"/>
+                        <Scripts>
+                            <OnCursorChanged>
+                                ScrollingEdit_OnCursorChanged(self, self:GetParent(), x, y, w, h)
+                            </OnCursorChanged>
+                             <OnLoad>
+                                ScrollingEdit_OnLoad(self, self:GetParent())
+                            </OnLoad>
+                             <OnEscapePressed>
+                                self:ClearFocus()
+                            </OnEscapePressed>
+                             <OnTabPressed>
+                                self:Insert("    ")
+                            </OnTabPressed>
+                             <OnEnterPressed>
+                                self:Insert("\n")
+                            </OnEnterPressed>
+                        </Scripts>
+                    </EditBox>
+                </ScrollChild>
+            </ScrollFrame>
+        </Frames>
+    </Frame>
+</Ui>
