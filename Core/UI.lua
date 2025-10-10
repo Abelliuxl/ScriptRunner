@@ -536,6 +536,14 @@ end
 function UI:RefreshSettingsPage()
 end
 
+function UI:UpdateSelectedScriptMode(mode)
+    if not selectedScriptID then return end
+    Storage:UpdateScript(selectedScriptID, { mode = mode })
+    
+    -- Refresh editor to ensure correct state after mode change
+    self:RefreshEditor()
+end
+
 function UI_ModeDropDown_Initialize(dropdown)
     UIDropDownMenu_Initialize(dropdown, function()
         local info = {}
@@ -544,6 +552,7 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "manual")
             F.editor.delayInput:SetEnabled(false)
+            UI:UpdateSelectedScriptMode("manual") -- 添加此行
             UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
@@ -554,6 +563,7 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "auto")
             F.editor.delayInput:SetEnabled(false)
+            UI:UpdateSelectedScriptMode("auto") -- 添加此行
             UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
@@ -564,6 +574,7 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "delay")
             F.editor.delayInput:SetEnabled(true)
+            UI:UpdateSelectedScriptMode("delay") -- 添加此行
             UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
