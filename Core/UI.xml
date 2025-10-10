@@ -88,16 +88,16 @@
                             <!-- Code Editor Background Container -->
                             <Frame name="$parentEditorBackground" inherits="InsetFrameTemplate">
                                  <Anchors>
-                                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="10" y="-35"/>
-                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-6" y="80"/>
+                                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="0" y="-35"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="0" y="80"/>
                                  </Anchors>
                             </Frame>
                             
                             <!-- Code Editor Container -->
                             <Frame name="$parentEditorContainer">
                                  <Anchors>
-                                    <Anchor point="TOPLEFT" relativeTo="$parentEditorBackground" relativePoint="TOPLEFT" x="4" y="-4"/>
-                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-4" y="4"/>
+                                    <Anchor point="TOPLEFT" relativeTo="$parentEditorBackground" relativePoint="TOPLEFT" x="8" y="-8"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-30" y="8"/>
                                  </Anchors>
                             </Frame>
                             
@@ -137,7 +137,7 @@
                             <EditBox name="$parentDelay" inherits="InputBoxTemplate" autoFocus="false" numeric="true">
                                 <Size x="60" y="20"/>
                                 <Anchors>
-                                    <Anchor point="LEFT" relativeTo="$parentModeDropdown" relativePoint="RIGHT" x="20" y="0"/>
+                                    <Anchor point="LEFT" relativeTo="$parentModeDropdown" relativePoint="RIGHT" x="20" y="2"/>
                                 </Anchors>
                                 <FontString inherits="GameFontNormal" />
                                 <Scripts>

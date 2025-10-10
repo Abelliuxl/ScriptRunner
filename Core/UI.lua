@@ -368,7 +368,17 @@ function UI:RefreshEditor()
         if F.editor.delayInput then F.editor.delayInput:SetText(tostring(script.delay or 5)) end
         if F.editor.modeDropdown then
             UIDropDownMenu_SetText(F.editor.modeDropdown, script.mode or "manual")
-            if F.editor.delayInput then F.editor.delayInput:SetEnabled(script.mode == 'delay') end
+            if F.editor.delayInput then 
+                local isDelayMode = (script.mode == 'delay')
+                F.editor.delayInput:SetEnabled(isDelayMode)
+                if isDelayMode then
+                    F.editor.delayInput:SetTextColor(1, 1, 1, 1) -- 亮色
+                    F.editor.delayInput:SetAlpha(1)
+                else
+                    F.editor.delayInput:SetTextColor(0.5, 0.5, 0.5, 1) -- 暗淡颜色
+                    F.editor.delayInput:SetAlpha(0.6)
+                end
+            end
         end
 
         if F.editor.saveButton then F.editor.saveButton:Enable() end
@@ -536,14 +546,6 @@ end
 function UI:RefreshSettingsPage()
 end
 
-function UI:UpdateSelectedScriptMode(mode)
-    if not selectedScriptID then return end
-    Storage:UpdateScript(selectedScriptID, { mode = mode })
-    
-    -- Refresh editor to ensure correct state after mode change
-    self:RefreshEditor()
-end
-
 function UI_ModeDropDown_Initialize(dropdown)
     UIDropDownMenu_Initialize(dropdown, function()
         local info = {}
@@ -552,7 +554,8 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "manual")
             F.editor.delayInput:SetEnabled(false)
-            UI:UpdateSelectedScriptMode("manual") -- 添加此行
+            F.editor.delayInput:SetTextColor(0.5, 0.5, 0.5, 1) -- 暗淡颜色
+            F.editor.delayInput:SetAlpha(0.6)
             UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
@@ -563,7 +566,8 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "auto")
             F.editor.delayInput:SetEnabled(false)
-            UI:UpdateSelectedScriptMode("auto") -- 添加此行
+            F.editor.delayInput:SetTextColor(0.5, 0.5, 0.5, 1) -- 暗淡颜色
+            F.editor.delayInput:SetAlpha(0.6)
             UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
@@ -574,7 +578,8 @@ function UI_ModeDropDown_Initialize(dropdown)
         info.func = function() 
             UIDropDownMenu_SetSelectedValue(dropdown, "delay")
             F.editor.delayInput:SetEnabled(true)
-            UI:UpdateSelectedScriptMode("delay") -- 添加此行
+            F.editor.delayInput:SetTextColor(1, 1, 1, 1) -- 亮色
+            F.editor.delayInput:SetAlpha(1)
             UI:CheckForChanges()
         end
         UIDropDownMenu_AddButton(info)
