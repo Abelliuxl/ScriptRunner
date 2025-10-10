@@ -74,17 +74,6 @@
                             <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-20" y="15"/>
                         </Anchors>
                         
-                        <Layers>
-                            <Layer level="ARTWORK">
-                                <!-- Save Status Text -->
-                                <FontString name="$parentSaveStatus" inherits="GameFontRedSmall" text="">
-                                    <Anchors>
-                                        <Anchor point="BOTTOM" relativeTo="$parentSave" relativePoint="TOP" x="0" y="2"/>
-                                    </Anchors>
-                                </FontString>
-                            </Layer>
-                        </Layers>
-
                         <Frames>
                             <!-- Name -->
                             <EditBox name="$parentName" inherits="InputBoxTemplate" autoFocus="false">
@@ -101,7 +90,7 @@
                                  <Anchors>
                                     <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="10" y="-35"/>
                                     <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-6" y="80"/>
-                                </Anchors>
+                                 </Anchors>
                             </Frame>
                             
                             <!-- Code Editor Container -->
@@ -109,7 +98,7 @@
                                  <Anchors>
                                     <Anchor point="TOPLEFT" relativeTo="$parentEditorBackground" relativePoint="TOPLEFT" x="4" y="-4"/>
                                     <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-4" y="4"/>
-                                </Anchors>
+                                 </Anchors>
                             </Frame>
                             
                             <!-- Controls -->
@@ -158,6 +147,17 @@
                                 </Scripts>
                             </EditBox>
                         </Frames>
+                        
+                        <Layers>
+                            <Layer level="ARTWORK">
+                                <!-- Save Status Text -->
+                                <FontString name="$parentSaveStatus" inherits="GameFontRedSmall" text="">
+                                    <Anchors>
+                                        <Anchor point="BOTTOM" relativeTo="$parentSave" relativePoint="TOP" x="0" y="2"/>
+                                    </Anchors>
+                                </FontString>
+                            </Layer>
+                        </Layers>
                     </Frame>
                 </Frames>
             </Frame>
