@@ -1,8 +1,9 @@
--- ScriptRunner - Execution engine module (Ace3 build)
+-- ScriptRunner - Execution engine module (Standalone)
 -- Executes stored scripts with optional scheduling helpers.
 
-local ScriptRunner = LibStub("AceAddon-3.0"):GetAddon("ScriptRunner")
-local Executor = ScriptRunner:NewModule("Executor", "AceEvent-3.0", "AceTimer-3.0")
+local Executor = {}
+local addon
+local Storage
 
 local scheduledTimers = {}
 
@@ -13,52 +14,20 @@ local executionStats = {
     lastExecutionTime = nil,
 }
 
-local function cancelTimer(self, scriptID)
+function Executor:Initialize(mainAddon)
+    addon = mainAddon
+    Storage = addon.Storage
+end
+
+local function cancelTimer(scriptID)
     local handle = scheduledTimers[scriptID]
     if handle then
-        self:CancelTimer(handle)
+        if handle.Cancel then -- C_Timer ticker
+            handle:Cancel()
+        else -- C_Timer.After handle
+             -- No standard way to cancel C_Timer.After, just wipe the handle
+        end
         scheduledTimers[scriptID] = nil
-    end
-end
-
-function Executor:OnInitialize()
-end
-
-function Executor:OnEnable()
-    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_TOGGLED", "OnScriptToggled")
-    self:RegisterMessage("SCRIPTRUNNER_SCRIPT_UPDATED", "OnScriptUpdated")
-end
-
-function Executor:OnDisable()
-    self:CancelAllTimers()
-    wipe(scheduledTimers)
-end
-
-function Executor:OnScriptToggled(_, scriptID, script)
-    cancelTimer(self, scriptID)
-
-    if script.enabled then
-        if script.mode == "auto" then
-            self:ScheduleAutoScript(scriptID)
-        elseif script.mode == "delay" then
-            self:ScheduleDelayedScript(script)
-        end
-    end
-end
-
-function Executor:OnScriptUpdated(_, scriptID, script, oldValues)
-    if oldValues.mode and oldValues.mode ~= script.mode then
-        cancelTimer(self, scriptID)
-    elseif oldValues.delay and oldValues.delay ~= script.delay then
-        cancelTimer(self, scriptID)
-    end
-
-    if script.enabled then
-        if script.mode == "auto" then
-            self:ScheduleAutoScript(scriptID)
-        elseif script.mode == "delay" then
-            self:ScheduleDelayedScript(script)
-        end
     end
 end
 
@@ -76,7 +45,7 @@ function Executor:CreateExecutionEnvironment(script, context)
         coroutine = coroutine,
         date = date,
         time = time,
-        ScriptRunner = ScriptRunner,
+        ScriptRunner = addon,
         script = script,
         context = context or {},
     }
@@ -105,41 +74,32 @@ function Executor:ExecuteScript(script, context)
 
     local env = self:CreateExecutionEnvironment(script, context)
 
-    local chunk, loadError
-    if loadstring then
-        chunk, loadError = loadstring(script.code, script.name or "ScriptRunner")
-    else
-        chunk, loadError = load(script.code, script.name or "ScriptRunner")
+    local chunk, loadError = loadstring(script.code, script.name or "ScriptRunner")
+    if chunk then
+        setfenv(chunk, env)
     end
 
     if not chunk then
         executionStats.failedExecutions = executionStats.failedExecutions + 1
-        self:SendMessage("SCRIPTRUNNER_SCRIPT_EXECUTED", script.id, script, loadError, false)
         return false, "Syntax error: " .. tostring(loadError)
-    end
-
-    if setfenv then
-        setfenv(chunk, env)
     end
 
     local ok, result = pcall(chunk)
     if ok then
         executionStats.successfulExecutions = executionStats.successfulExecutions + 1
-        self:SendMessage("SCRIPTRUNNER_SCRIPT_EXECUTED", script.id, script, result, true)
         return true, result
     end
 
     executionStats.failedExecutions = executionStats.failedExecutions + 1
-    self:SendMessage("SCRIPTRUNNER_SCRIPT_EXECUTED", script.id, script, result, false)
     return false, result
 end
 
 function Executor:ExecuteManualScript(scriptID)
-    if not ScriptRunner.Storage then
+    if not Storage then
         return false, "Storage module is not loaded."
     end
 
-    local script = ScriptRunner.Storage:GetScript(scriptID)
+    local script = Storage:GetScript(scriptID)
     if not script then
         return false, "Script does not exist."
     end
@@ -156,12 +116,7 @@ function Executor:ValidateScript(code)
         return false, "Code is empty."
     end
 
-    local chunk, loadError
-    if loadstring then
-        chunk, loadError = loadstring(code, "ScriptRunnerValidation")
-    else
-        chunk, loadError = load(code, "ScriptRunnerValidation")
-    end
+    local chunk, loadError = loadstring("return function() " .. code .. " end", "ScriptRunnerValidation")
 
     if not chunk then
         return false, "Syntax error: " .. tostring(loadError)
@@ -170,75 +125,43 @@ function Executor:ValidateScript(code)
     return true, "Syntax OK"
 end
 
-function Executor:ScheduleAutoScript(scriptID)
-    if not ScriptRunner.Storage then
-        return false, "Storage module is not loaded."
-    end
-
-    local script = ScriptRunner.Storage:GetScript(scriptID)
-    if not script or not script.enabled or script.mode ~= "auto" then
-        return false
-    end
-
-    cancelTimer(self, scriptID)
-
-    local interval = tonumber(script.delay) or 30
-    if interval <= 0 then
-        interval = 30
-    end
-
-    scheduledTimers[scriptID] = self:ScheduleRepeatingTimer(function()
-        local current = ScriptRunner.Storage and ScriptRunner.Storage:GetScript(scriptID)
-        if current and current.enabled and current.mode == "auto" then
-            self:ExecuteScript(current)
-        else
-            cancelTimer(self, scriptID)
-        end
-    end, interval)
-
-    return true
-end
 
 function Executor:ScheduleDelayedScript(script)
-    if not script or script.mode ~= "delay" then
+    if not script or script.mode ~= "delay" or not script.enabled then
         return false
     end
 
-    cancelTimer(self, script.id)
+    cancelTimer(script.id)
 
     local delay = tonumber(script.delay) or 5
     if delay < 0 then
         delay = 0
     end
 
-    scheduledTimers[script.id] = self:ScheduleTimer(function()
-        local current = ScriptRunner.Storage and ScriptRunner.Storage:GetScript(script.id)
+    scheduledTimers[script.id] = C_Timer.After(delay, function()
+        local current = Storage:GetScript(script.id)
         if current and current.enabled and current.mode == "delay" then
             self:ExecuteScript(current)
         end
-        cancelTimer(self, script.id)
-    end, delay)
+        scheduledTimers[script.id] = nil
+    end)
 
     return true
 end
 
-function Executor:CancelScriptExecution(scriptID)
-    cancelTimer(self, scriptID)
-end
-
 function Executor:ExecuteAutoScripts()
-    if not ScriptRunner.Storage then
+    if not Storage then
         print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
         return
     end
 
-    local scripts = ScriptRunner.Storage:GetAllScripts()
+    local scripts = Storage:GetAllScripts()
     local executedCount = 0
     local errorCount = 0
 
     for _, script in pairs(scripts) do
         if script.enabled and script.mode == "auto" then
-            local success = self:ExecuteScript(script)
+            local success, _ = self:ExecuteScript(script)
             if success then
                 executedCount = executedCount + 1
             else
@@ -253,62 +176,17 @@ function Executor:ExecuteAutoScripts()
 end
 
 function Executor:ScheduleDelayedScripts()
-    if not ScriptRunner.Storage then
+    if not Storage then
         print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
         return
     end
 
-    local scripts = ScriptRunner.Storage:GetAllScripts()
+    local scripts = Storage:GetAllScripts()
     for _, script in pairs(scripts) do
         if script.enabled and script.mode == "delay" then
             self:ScheduleDelayedScript(script)
         end
     end
-end
-
-function Executor:BatchExecute(scriptIDs, parallel)
-    if not ScriptRunner.Storage then
-        return false, "Storage module is not loaded."
-    end
-
-    if type(scriptIDs) ~= "table" then
-        return false, "scriptIDs must be a table."
-    end
-
-    local results = {}
-    local successCount = 0
-    local errorCount = 0
-
-    local function run(scriptID)
-        local script = ScriptRunner.Storage:GetScript(scriptID)
-        if script then
-            local success, result = self:ExecuteScript(script)
-            results[scriptID] = { success = success, result = result }
-            if success then
-                successCount = successCount + 1
-            else
-                errorCount = errorCount + 1
-            end
-        else
-            results[scriptID] = { success = false, result = "Script does not exist." }
-            errorCount = errorCount + 1
-        end
-    end
-
-    if parallel then
-        for _, scriptID in ipairs(scriptIDs) do
-            self:ScheduleTimer(function()
-                run(scriptID)
-            end, 0)
-        end
-    else
-        for _, scriptID in ipairs(scriptIDs) do
-            run(scriptID)
-        end
-    end
-
-    self:SendMessage("SCRIPTRUNNER_BATCH_EXECUTION", scriptIDs, results, successCount, errorCount)
-    return results, successCount, errorCount
 end
 
 function Executor:GetExecutionStats()

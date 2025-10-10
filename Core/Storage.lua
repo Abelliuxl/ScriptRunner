@@ -1,26 +1,20 @@
--- ScriptRunner - Storage module (Ace3 build)
+-- ScriptRunner - Storage module (Standalone)
 -- Persists and manages script data.
 
-local ScriptRunner = LibStub("AceAddon-3.0"):GetAddon("ScriptRunner")
-local Storage = ScriptRunner:NewModule("Storage", "AceEvent-3.0")
+local Storage = {}
+local addon
+
+function Storage:Initialize(mainAddon)
+    addon = mainAddon
+    addon.db.global.scripts = addon.db.global.scripts or {}
+end
 
 local function getScriptDB()
-    ScriptRunner.db.global.scripts = ScriptRunner.db.global.scripts or {}
-    return ScriptRunner.db.global.scripts
+    return addon.db.global.scripts
 end
 
 local function generateUniqueID()
     return string.format("script_%d_%04d", time(), math.random(0, 9999))
-end
-
-function Storage:OnInitialize()
-    getScriptDB()
-end
-
-function Storage:OnEnable()
-end
-
-function Storage:OnDisable()
 end
 
 function Storage:GetAllScripts()
@@ -55,7 +49,6 @@ function Storage:CreateScript(name, code, mode, delay)
     }
 
     scripts[scriptID] = script
-    self:SendMessage("SCRIPTRUNNER_SCRIPT_CREATED", scriptID, script)
     return script
 end
 
@@ -69,10 +62,7 @@ function Storage:UpdateScript(scriptID, updates)
         return false, "Invalid update payload."
     end
 
-    local oldValues = {}
-
     for key, value in pairs(updates) do
-        oldValues[key] = script[key]
         if key == "name" and type(value) == "string" then
             script.name = value
         elseif key == "code" and type(value) == "string" then
@@ -90,7 +80,6 @@ function Storage:UpdateScript(scriptID, updates)
     end
 
     script.updatedAt = time()
-    self:SendMessage("SCRIPTRUNNER_SCRIPT_UPDATED", scriptID, script, oldValues)
     return true, script
 end
 
@@ -102,7 +91,6 @@ function Storage:DeleteScript(scriptID)
     end
 
     scripts[scriptID] = nil
-    self:SendMessage("SCRIPTRUNNER_SCRIPT_DELETED", scriptID, script)
     return true
 end
 
@@ -112,10 +100,8 @@ function Storage:ToggleScript(scriptID)
         return false
     end
 
-    local oldEnabled = script.enabled
     script.enabled = not script.enabled
     script.updatedAt = time()
-    self:SendMessage("SCRIPTRUNNER_SCRIPT_TOGGLED", scriptID, script, oldEnabled)
     return script.enabled
 end
 
@@ -147,7 +133,6 @@ function Storage:ImportScripts(data)
             }
 
             scripts[scriptID] = script
-            self:SendMessage("SCRIPTRUNNER_SCRIPT_CREATED", scriptID, script)
             count = count + 1
         end
     end
@@ -157,15 +142,9 @@ end
 
 function Storage:ClearAllScripts()
     local scripts = getScriptDB()
-    local removed = {}
-
-    for id, script in pairs(scripts) do
-        removed[id] = script
-        self:SendMessage("SCRIPTRUNNER_SCRIPT_DELETED", id, script)
+    for id, _ in pairs(scripts) do
         scripts[id] = nil
     end
-
-    self:SendMessage("SCRIPTRUNNER_DATABASE_CLEARED", removed)
 end
 
 function Storage:GetStats()
@@ -207,42 +186,6 @@ function Storage:GetStats()
     end
 
     return stats
-end
-
-function Storage:Maintenance()
-    local scripts = getScriptDB()
-    local fixed = 0
-
-    for _, script in pairs(scripts) do
-        local updated = false
-
-        if not script.name or script.name == "" then
-            script.name = "Untitled Script"
-            updated = true
-        end
-
-        if script.mode ~= "auto" and script.mode ~= "delay" and script.mode ~= "manual" then
-            script.mode = "manual"
-            updated = true
-        end
-
-        if type(script.delay) ~= "number" or script.delay < 0 then
-            script.delay = 5
-            updated = true
-        end
-
-        if script.enabled == nil then
-            script.enabled = true
-            updated = true
-        end
-
-        if updated then
-            script.updatedAt = time()
-            fixed = fixed + 1
-        end
-    end
-
-    return { fixedScripts = fixed }
 end
 
 ScriptRunner.Storage = Storage

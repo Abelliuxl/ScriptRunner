@@ -1,61 +1,64 @@
 -- ScriptRunner - In-game Lua Script Runner
--- Version: 1.0.0 (Ace3 build)
+-- Version: 2.0.0 (Standalone)
 
-local AceAddon = LibStub("AceAddon-3.0")
-local AceDB = LibStub("AceDB-3.0")
-local AceDBOptions = LibStub("AceDBOptions-3.0")
-local AceConfig = LibStub("AceConfig-3.0")
-local AceConfigDialog = LibStub("AceConfigDialog-3.0")
-
-local ScriptRunner = AceAddon:NewAddon("ScriptRunner", "AceConsole-3.0", "AceEvent-3.0")
+local ADDON_NAME = "ScriptRunner"
+local ScriptRunner = {
+    name = ADDON_NAME,
+    version = "2.0.0",
+    title = "ScriptRunner",
+    notes = "In-game Lua script executor.",
+    author = "Custom",
+}
+_G[ADDON_NAME] = ScriptRunner
 
 local MANAGED_MODULES = { "Storage", "Executor", "UI" }
 
-ScriptRunner.version = "1.0.0"
-ScriptRunner.title = "ScriptRunner"
-ScriptRunner.notes = "In-game Lua script executor."
-ScriptRunner.author = "Custom"
-
-local defaults = {
-    profile = {
-        enabled = true,
-        theme = "default",
-        minimap = {
-            hide = false,
-            minRadius = 140,
-            maxRadius = 200,
-            angle = math.pi / 2,
-        },
-    },
-    global = {
-        scripts = {},
-    },
-}
-
-local function trim(str)
-    if type(str) ~= "string" then
-        return ""
+local f = CreateFrame("Frame")
+f:RegisterEvent("ADDON_LOADED")
+f:SetScript("OnEvent", function(self, event, addonName)
+    if addonName == ADDON_NAME then
+        ScriptRunner:OnAddonLoaded()
+        f:UnregisterEvent("ADDON_LOADED")
     end
-    return str:match("^%s*(.-)%s*$") or ""
-end
+end)
 
-function ScriptRunner:OnInitialize()
-    self.db = AceDB:New("ScriptRunnerDB", defaults, true)
-    self:SetupOptions()
-    self:EnsureModulesLoaded()
-    self:RegisterChatCommands()
-    print(string.format("|cff00ff00ScriptRunner|r: v%s initialised", self.version))
-end
+function ScriptRunner:OnAddonLoaded()
+    -- Initialize saved variables
+    ScriptRunnerDB = ScriptRunnerDB or {
+        profile = {
+            enabled = true,
+            theme = "default",
+            minimap = {
+                hide = false,
+                minRadius = 140,
+                maxRadius = 200,
+                angle = math.pi / 2,
+            },
+        },
+        global = {
+            scripts = {},
+        },
+    }
 
-function ScriptRunner:OnEnable()
+    self.db = ScriptRunnerDB
+
     self:EnsureModulesLoaded()
+    self:RegisterSlashCommands()
+
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
-    print("|cff00ff00ScriptRunner|r: Addon enabled")
-    print("|cff00ff00ScriptRunner|r: Use /sr to open the interface")
+    print(string.format("|cff00ff00%s|r: v%s loaded.", self.title, self.version))
+    print(string.format("|cff00ff00%s|r: Use /sr to open the interface.", self.title))
 end
 
-function ScriptRunner:OnDisable()
-    print("|cff00ff00ScriptRunner|r: Addon disabled")
+function ScriptRunner:EnsureModulesLoaded()
+    for _, moduleName in ipairs(MANAGED_MODULES) do
+        local module = self[moduleName]
+        if module and type(module.Initialize) == "function" then
+            module:Initialize(self)
+        else
+            print(string.format("|cffff0000%s|r: Module '%s' not found or is invalid.", self.title, moduleName))
+        end
+    end
 end
 
 function ScriptRunner:OnPlayerEnteringWorld()
@@ -71,87 +74,29 @@ function ScriptRunner:OnPlayerEnteringWorld()
     end)
 end
 
-function ScriptRunner:EnsureModulesLoaded()
-    for _, moduleName in ipairs(MANAGED_MODULES) do
-        local module = self:GetModule(moduleName, true)
-        if module then
-            if not self[moduleName] then
-                self[moduleName] = module
-            end
-            if self:IsEnabled() and module.IsEnabled and not module:IsEnabled() then
-                self:EnableModule(moduleName)
-            end
-        else
-            print(string.format("|cffff0000ScriptRunner|r: Module '%s' not found", moduleName))
+function ScriptRunner:RegisterEvent(event, method)
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent(event)
+    frame:SetScript("OnEvent", function(_, event, ...)
+        if self[method] then
+            self[method](self, event, ...)
         end
+    end)
+end
+
+function ScriptRunner:RegisterSlashCommands()
+    SLASH_SCRIPTRUNNER1 = "/scriptrunner"
+    SLASH_SCRIPTRUNNER2 = "/sr"
+    SlashCmdList["SCRIPTRUNNER"] = function(msg)
+        ScriptRunner:HandleSlashCommand(msg)
     end
 end
 
-function ScriptRunner:SetupOptions()
-    local options = {
-        type = "group",
-        name = "ScriptRunner",
-        childGroups = "tab",
-        args = {
-            general = {
-                type = "group",
-                name = "General",
-                order = 1,
-                args = {
-                    header = {
-                        type = "header",
-                        name = "ScriptRunner v" .. self.version,
-                        order = 1,
-                    },
-                    enabled = {
-                        type = "toggle",
-                        name = "Enable",
-                        desc = "Enable or disable the ScriptRunner addon.",
-                        order = 2,
-                        get = function()
-                            return self.db and self.db.profile.enabled
-                        end,
-                        set = function(_, value)
-                            self.db.profile.enabled = value
-                            if value then
-                                self:Enable()
-                            else
-                                self:Disable()
-                            end
-                        end,
-                    },
-                    description = {
-                        type = "description",
-                        name = "ScriptRunner lets you store and run custom Lua snippets inside World of Warcraft.\nUse /sr to open the interface.",
-                        order = 3,
-                    },
-                },
-            },
-        },
-    }
-
-    local profilesOptions = AceDBOptions:GetOptionsTable(self.db)
-    profilesOptions.order = 2
-    options.args.profiles = profilesOptions
-
-    AceConfig:RegisterOptionsTable("ScriptRunner", options)
-
-    if not self._blizOptionsScheduled then
-        self._blizOptionsScheduled = true
-        C_Timer.After(0, function()
-            local ok, err = pcall(function()
-                AceConfigDialog:AddToBlizOptions("ScriptRunner", "ScriptRunner")
-            end)
-            if not ok then
-                print("|cffff0000ScriptRunner|r: Failed to register options with Blizzard: " .. tostring(err))
-            end
-        end)
+local function trim(str)
+    if type(str) ~= "string" then
+        return ""
     end
-end
-
-function ScriptRunner:RegisterChatCommands()
-    self:RegisterChatCommand("sr", "HandleSlashCommand")
-    self:RegisterChatCommand("scriptrunner", "HandleSlashCommand")
+    return str:match("^%s*(.-)%s*$") or ""
 end
 
 local function findScriptByIdentifier(storage, identifier)
@@ -183,7 +128,7 @@ function ScriptRunner:HandleSlashCommand(msg)
         if self.UI and self.UI.Toggle then
             self.UI:Toggle()
         else
-            print("|cffff0000ScriptRunner|r: UI module is not loaded.")
+            print(string.format("|cffff0000%s|r: UI module is not loaded.", self.title))
         end
         return
     end
@@ -210,10 +155,8 @@ function ScriptRunner:HandleSlashCommand(msg)
         self:ValidateAllScripts()
     elseif command == "test" then
         self:RunTestScript()
-    elseif command == "config" then
-        AceConfigDialog:Open("ScriptRunner")
     else
-        print("|cffff0000ScriptRunner|r: Unknown command. Use /sr help for a list of commands.")
+        print(string.format("|cffff0000%s|r: Unknown command. Use /sr help for a list of commands.", self.title))
     end
 end
 
@@ -224,7 +167,6 @@ function ScriptRunner:ShowHelp()
     print("  /sr help - show this help message")
     print("  /sr list - list all stored scripts")
     print("  /sr stats - show statistics")
-    print("  /sr config - open the configuration panel")
     print("|cff00ccffScript Management:|r")
     print("  /sr create <name> - create a new script")
     print("  /sr delete <id or name> - delete a script")
@@ -236,14 +178,14 @@ end
 
 function ScriptRunner:ListScripts()
     if not self.Storage then
-        print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
+        print(string.format("|cffff0000%s|r: Storage module is not loaded.", self.title))
         return
     end
 
     local scripts = self.Storage:GetAllScripts()
     local ordered = {}
     for id, script in pairs(scripts) do
-        ordered[#ordered + 1] = { id = id, script = script }
+        table.insert(ordered, { id = id, script = script })
     end
 
     table.sort(ordered, function(a, b)
@@ -290,7 +232,7 @@ end
 
 function ScriptRunner:ShowStats()
     if not self.Storage then
-        print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
+        print(string.format("|cffff0000%s|r: Storage module is not loaded.", self.title))
         return
     end
 
@@ -309,27 +251,27 @@ end
 
 function ScriptRunner:RunScript(identifier)
     if not self.Storage or not self.Executor then
-        print("|cffff0000ScriptRunner|r: Storage or Executor module is not loaded.")
+        print(string.format("|cffff0000%s|r: Storage or Executor module is not loaded.", self.title))
         return
     end
 
     local id, script = findScriptByIdentifier(self.Storage, identifier)
     if not script then
-        print(string.format("|cffff0000ScriptRunner|r: Could not find script '%s'.", identifier))
+        print(string.format("|cffff0000%s|r: Could not find script '%s'.", self.title, identifier))
         return
     end
 
     local success, result = self.Executor:ExecuteManualScript(id)
     if success then
-        print(string.format("|cff00ff00ScriptRunner|r: Script '%s' executed successfully.", script.name or id))
+        print(string.format("|cff00ff00%s|r: Script '%s' executed successfully.", self.title, script.name or id))
     else
-        print(string.format("|cffff0000ScriptRunner|r: Script '%s' failed: %s", script.name or id, tostring(result)))
+        print(string.format("|cffff0000%s|r: Script '%s' failed: %s", self.title, script.name or id, tostring(result)))
     end
 end
 
 function ScriptRunner:CreateScript(name)
     if not self.Storage then
-        print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
+        print(string.format("|cffff0000%s|r: Storage module is not loaded.", self.title))
         return
     end
 
@@ -340,7 +282,7 @@ function ScriptRunner:CreateScript(name)
 
     local template = string.format("-- %s\nprint(\"Hello from %s\")\n", name, name)
     local script = self.Storage:CreateScript(name, template, "manual", 5)
-    print(string.format("|cff00ff00ScriptRunner|r: Script '%s' created (id %s).", script.name, script.id))
+    print(string.format("|cff00ff00%s|r: Script '%s' created (id %s).", self.title, script.name, script.id))
 
     if self.UI and self.UI.SelectScript then
         self.UI:SelectScript(script.id)
@@ -350,18 +292,18 @@ end
 
 function ScriptRunner:DeleteScript(identifier)
     if not self.Storage then
-        print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
+        print(string.format("|cffff0000%s|r: Storage module is not loaded.", self.title))
         return
     end
 
     local id, script = findScriptByIdentifier(self.Storage, identifier)
     if not script then
-        print(string.format("|cffff0000ScriptRunner|r: Could not find script '%s'.", identifier))
+        print(string.format("|cffff0000%s|r: Could not find script '%s'.", self.title, identifier))
         return
     end
 
     self.Storage:DeleteScript(id)
-    print(string.format("|cff00ff00ScriptRunner|r: Script '%s' deleted.", script.name or id))
+    print(string.format("|cff00ff00%s|r: Script '%s' deleted.", self.title, script.name or id))
 
     if self.UI and self.UI.RefreshScriptList then
         self.UI:RefreshScriptList()
@@ -370,30 +312,30 @@ end
 
 function ScriptRunner:ImportScripts(data)
     if not self.Storage then
-        print("|cffff0000ScriptRunner|r: Storage module is not loaded.")
+        print(string.format("|cffff0000%s|r: Storage module is not loaded.", self.title))
         return
     end
 
     local importData = self:DeserializeTable(data)
     if not importData then
-        print("|cffff0000ScriptRunner|r: Invalid import data.")
+        print(string.format("|cffff0000%s|r: Invalid import data.", self.title))
         return
     end
 
     local success, count = self.Storage:ImportScripts(importData)
     if success then
-        print(string.format("|cff00ff00ScriptRunner|r: Imported %d scripts.", count or 0))
+        print(string.format("|cff00ff00%s|r: Imported %d scripts.", self.title, count or 0))
         if self.UI and self.UI.RefreshScriptList then
             self.UI:RefreshScriptList()
         end
     else
-        print("|cffff0000ScriptRunner|r: Import failed: " .. tostring(count))
+        print(string.format("|cffff0000%s|r: Import failed: %s", self.title, tostring(count)))
     end
 end
 
 function ScriptRunner:ValidateAllScripts()
     if not self.Storage or not self.Executor then
-        print("|cffff0000ScriptRunner|r: Storage or Executor module is not loaded.")
+        print(string.format("|cffff0000%s|r: Storage or Executor module is not loaded.", self.title))
         return
     end
 
@@ -418,7 +360,7 @@ end
 
 function ScriptRunner:RunTestScript()
     if not self.Executor then
-        print("|cffff0000ScriptRunner|r: Executor module is not loaded.")
+        print(string.format("|cffff0000%s|r: Executor module is not loaded.", self.title))
         return
     end
 
@@ -442,14 +384,14 @@ print("=== Test Complete ===")
 
     local success, result = self.Executor:ExecuteScript(testScript)
     if success then
-        print("|cff00ff00ScriptRunner|r: Test script executed successfully.")
+        print(string.format("|cff00ff00%s|r: Test script executed successfully.", self.title))
     else
-        print("|cffff0000ScriptRunner|r: Test script failed: " .. tostring(result))
+        print(string.format("|cffff0000%s|r: Test script failed: %s", self.title, tostring(result)))
     end
 end
 
 function ScriptRunner:ResetDatabase()
-    print("|cffff0000ScriptRunner|r: This will delete all stored script data.")
+    print(string.format("|cffff0000%s|r: This will delete all stored script data.", self.title))
 
     StaticPopupDialogs["SCRIPTRUNNER_RESET_CONFIRM"] = {
         text = "Reset all ScriptRunner data?\n\nThis cannot be undone.",
@@ -458,11 +400,11 @@ function ScriptRunner:ResetDatabase()
         OnAccept = function()
             if self.Storage and self.Storage.ClearAllScripts then
                 self.Storage:ClearAllScripts()
-                print("|cff00ff00ScriptRunner|r: All script data has been reset.")
+                print(string.format("|cff00ff00%s|r: All script data has been reset.", self.title))
             end
         end,
         OnCancel = function()
-            print("|cff00ff00ScriptRunner|r: Reset cancelled.")
+            print(string.format("|cff00ff00%s|r: Reset cancelled.", self.title))
         end,
         timeout = 0,
         whileDead = true,
@@ -489,9 +431,20 @@ function ScriptRunner:DeserializeTable(str)
         return nil
     end
 
+    local sandbox = {}
     if setfenv then
-        setfenv(chunk, {})
+        setfenv(chunk, sandbox)
+    else
+      -- Lua 5.2+ _ENV
+      -- This is a very basic sandbox, not secure.
+      -- For addon usage this is usually fine.
+      local f, err = load("return " .. str, "ScriptRunnerImport", "t", sandbox)
+      if not f then return nil, err end
+      local ok, res = pcall(f)
+      if ok then return res end
+      return nil
     end
+
 
     local ok, result = pcall(chunk)
     if not ok or type(result) ~= "table" then
@@ -500,5 +453,3 @@ function ScriptRunner:DeserializeTable(str)
 
     return result
 end
-
-_G.ScriptRunner = ScriptRunner

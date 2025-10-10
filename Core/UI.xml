@@ -1,0 +1,178 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+
+    <!-- Main Frame -->
+    <Frame name="ScriptRunnerFrame" parent="UIParent" movable="true" clampedToScreen="true" hidden="true" frameStrata="MEDIUM" toplevel="true" inherits="BackdropTemplate">
+        <Size x="900" y="650"/>
+        <Anchors>
+            <Anchor point="CENTER"/>
+        </Anchors>
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString name="$parentTitle" inherits="GameFontNormal" text="ScriptRunner">
+                    <Anchors>
+                        <Anchor point="TOP" x="0" y="-18"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+
+        <Frames>
+            <!-- Close Button -->
+            <Button name="$parentCloseButton" inherits="UIPanelCloseButton">
+                <Anchors>
+                    <Anchor point="TOPRIGHT" x="0" y="0"/>
+                </Anchors>
+            </Button>
+
+            <!-- Tabs -->
+            <Button name="$parentTab1" inherits="UIPanelButtonTemplate" text="Scripts" id="1">
+                <Size x="100" y="32"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" x="20" y="-40"/>
+                </Anchors>
+            </Button>
+            <Button name="$parentTab2" inherits="UIPanelButtonTemplate" text="Settings" id="2">
+                <Size x="100" y="32"/>
+                <Anchors>
+                    <Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT" x="5" y="0"/>
+                </Anchors>
+            </Button>
+
+                <!-- Scripts Page -->
+                <Frame name="$parentScriptsPage">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="15" y="-50"/>
+                        <Anchor point="BOTTOMRIGHT" x="-15" y="15"/>
+                    </Anchors>
+
+                <Frames>
+                    <!-- Script List -->
+                    <Frame name="$parentListContainer" inherits="InsetFrameTemplate">
+                        <Size x="250" y="0"/>
+                        <Anchors>
+                            <Anchor point="TOPLEFT" x="0" y="-70"/>
+                            <Anchor point="BOTTOMLEFT" x="0" y="15"/>
+                        </Anchors>
+                    </Frame>
+                    <ScrollFrame name="$parentList" inherits="UIPanelScrollFrameTemplate">
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativeTo="$parentListContainer" relativePoint="TOPLEFT" x="6" y="-8"/>
+                            <Anchor point="BOTTOMRIGHT" relativeTo="$parentListContainer" relativePoint="BOTTOMRIGHT" x="-30" y="8"/>
+                        </Anchors>
+                        <ScrollChild>
+                            <Frame name="$parentContent">
+                                <Size x="200" y="1"/>
+                            </Frame>
+                        </ScrollChild>
+                    </ScrollFrame>
+                    
+                    <!-- Editor Area-->
+                    <Frame name="$parentEditor">
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativeTo="$parentListContainer" relativePoint="TOPRIGHT" x="10" y="0"/>
+                            <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-20" y="15"/>
+                        </Anchors>
+
+                        <Frames>
+                            <!-- Name -->
+                            <EditBox name="$parentName" inherits="InputBoxTemplate" autoFocus="false">
+                                <Size x="0" y="20"/>
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" x="10" y="-5"/>
+                                    <Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-10" y="-5"/>
+                                </Anchors>
+                                <FontString inherits="GameFontNormal" />
+                            </EditBox>
+                            
+                            <!-- Code Editor -->
+                            <Frame name="$parentCodeBackground" inherits="InsetFrameTemplate">
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="0" y="-12"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-6" y="48"/>
+                                </Anchors>
+                            </Frame>
+                            <ScrollFrame name="$parentCodeScroll" inherits="UIPanelScrollFrameTemplate">
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" relativeTo="$parentCodeBackground" relativePoint="TOPLEFT" x="8" y="-8"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentCodeBackground" relativePoint="BOTTOMRIGHT" x="-28" y="8"/>
+                                </Anchors>
+                                <ScrollChild>
+                                    <EditBox name="$parentCode" letters="0" multiLine="true" autoFocus="false" enableMouse="true" countInvisibleLetters="false">
+                                        <Size x="1" y="1"/>
+                                        <FontString inherits="ChatFontNormal" justifyH="LEFT" justifyV="TOP"/>
+                                        <Scripts>
+                                            <OnEscapePressed>
+                                                self:ClearFocus()
+                                            </OnEscapePressed>
+                                        </Scripts>
+                                    </EditBox>
+                                </ScrollChild>
+                            </ScrollFrame>
+                            
+                            <!-- Controls -->
+                            <Button name="$parentSave" inherits="UIPanelButtonTemplate" text="Save">
+                                <Size x="100" y="25"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-10" y="10"/>
+                                </Anchors>
+                            </Button>
+                            <Button name="$parentRun" inherits="UIPanelButtonTemplate" text="Run">
+                                <Size x="100" y="25"/>
+                                <Anchors>
+                                    <Anchor point="RIGHT" relativeTo="$parentSave" relativePoint="LEFT" x="-10" y="0"/>
+                                </Anchors>
+                            </Button>
+                            <Button name="$parentNew" inherits="UIPanelButtonTemplate" text="New">
+                                <Size x="100" y="25"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="10" y="10"/>
+                                </Anchors>
+                            </Button>
+                             <Button name="$parentDelete" inherits="UIPanelButtonTemplate" text="Delete">
+                                 <Size x="100" y="25"/>
+                                 <Anchors>
+                                     <Anchor point="LEFT" relativeTo="$parentNew" relativePoint="RIGHT" x="10" y="0"/>
+                                 </Anchors>
+                             </Button>
+
+                            <!-- Options -->
+                            <Frame name="$parentModeDropdown" inherits="UIDropDownMenuTemplate">
+                                <Size x="150" y="24"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="10" y="40"/>
+                                </Anchors>
+                            </Frame>
+                            <EditBox name="$parentDelay" inherits="InputBoxTemplate" autoFocus="false" numeric="true">
+                                <Size x="60" y="20"/>
+                                <Anchors>
+                                    <Anchor point="LEFT" relativeTo="$parentModeDropdown" relativePoint="RIGHT" x="20" y="0"/>
+                                </Anchors>
+                                <FontString inherits="GameFontNormal" />
+                                <Scripts>
+                                    <OnEnterPressed>
+                                        self:ClearFocus()
+                                    </OnEnterPressed>
+                                </Scripts>
+                            </EditBox>
+                        </Frames>
+                    </Frame>
+                </Frames>
+            </Frame>
+
+            <!-- Settings Page -->
+            <Frame name="$parentSettingsPage" setAllPoints="true" hidden="true">
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <FontString inherits="GameFontNormal" text="Settings will be available in a future update.">
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                        </FontString>
+                    </Layer>
+                </Layers>
+            </Frame>
+        </Frames>
+    </Frame>
+
+</Ui>
