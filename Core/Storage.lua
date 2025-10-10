@@ -7,6 +7,44 @@ local addon
 function Storage:Initialize(mainAddon)
     addon = mainAddon
     addon.db.global.scripts = addon.db.global.scripts or {}
+    
+    -- Migrate old profile scripts to global scripts
+    self:MigrateLegacyData()
+end
+
+function Storage:MigrateLegacyData()
+    -- Check if there are old profile scripts that need migration
+    if addon.db.scripts and type(addon.db.scripts) == "table" then
+        local migrated = 0
+        local globalScripts = addon.db.global.scripts
+        
+        for scriptID, script in pairs(addon.db.scripts) do
+            -- Only migrate if this script doesn't already exist in global
+            if not globalScripts[scriptID] then
+                -- Ensure the script has all required fields
+                local migratedScript = {
+                    id = script.id or scriptID,
+                    name = script.name or "Migrated Script",
+                    code = script.code or "",
+                    mode = script.mode or "manual",
+                    delay = tonumber(script.delay) or 5,
+                    enabled = script.enabled ~= false,
+                    createdAt = script.createdAt or time(),
+                    updatedAt = script.updatedAt or time(),
+                }
+                
+                globalScripts[scriptID] = migratedScript
+                migrated = migrated + 1
+            end
+        end
+        
+        if migrated > 0 then
+            print(string.format("|cff00ff00ScriptRunner|r: Migrated %d legacy scripts to new storage format.", migrated))
+            
+            -- Clear the old scripts after successful migration
+            addon.db.scripts = nil
+        end
+    end
 end
 
 local function getScriptDB()
