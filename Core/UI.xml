@@ -32,7 +32,7 @@
                     <Anchor point="TOPLEFT" x="20" y="-40"/>
                 </Anchors>
             </Button>
-            <Button name="$parentTab2" inherits="UIPanelButtonTemplate" text="Settings" id="2">
+            <Button name="$parentTab2" inherits="UIPanelButtonTemplate" text="重载界面" id="2">
                 <Size x="100" y="32"/>
                 <Anchors>
                     <Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT" x="5" y="0"/>

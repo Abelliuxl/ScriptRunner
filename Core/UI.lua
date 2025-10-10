@@ -87,7 +87,7 @@ function UI:Initialize(mainAddon)
         F.tabs[1]:SetScript("OnClick", function() self:SelectTab(1) end)
     end
     if F.tabs[2] then
-        F.tabs[2]:SetScript("OnClick", function() self:SelectTab(2) end)
+        F.tabs[2]:SetScript("OnClick", function() self:ReloadUI() end)
     end
 
     if F.editor.saveButton then
@@ -416,6 +416,10 @@ function UI:RunSelectedScript()
     else
         print(string.format("|cffff0000%s|r: '%s' failed: %s", addonName or "ScriptRunner", scriptName, tostring(message)))
     end
+end
+
+function UI:ReloadUI()
+    ReloadUI()
 end
 
 function UI:RefreshSettingsPage()
