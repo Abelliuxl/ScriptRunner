@@ -269,8 +269,23 @@ function UI:RefreshScriptList()
         end
 
         button.scriptID = entry.id
+        
+        -- Create mode indicators
+        local modeIndicator = ""
+        if entry.script.mode == "auto" then
+            modeIndicator = "|cff00ccff[A]|r"
+        elseif entry.script.mode == "delay" then
+            modeIndicator = "|cffffcc00[D]|r"
+        else
+            modeIndicator = "|cff888888[M]|r"
+        end
+        
+        -- Create status indicators
         local statusText = entry.script.enabled and "|cff00ff00[ON]|r" or "|cffff2020[OFF]|r"
-        button.text:SetText(statusText .. " " .. (entry.script.name or "Unnamed"))
+        
+        -- Combine all indicators: Mode + Status + Name
+        local displayText = string.format("%s %s %s", modeIndicator, statusText, entry.script.name or "Unnamed")
+        button.text:SetText(displayText)
         button.text:SetFontObject(entry.script.enabled and GameFontHighlightSmall or GameFontDisableSmall)
         button.text:ClearAllPoints()
         button.text:SetPoint("LEFT", button, "LEFT", 12, 0)
