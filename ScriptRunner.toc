@@ -6,6 +6,7 @@
 ## Category-zhCN: 其它
 ## Category-enUS: Other
 ## SavedVariables: ScriptRunnerDB
+## IconTexture: Interface\AddOns\ScriptRunner\icon.png
 
 # 核心文件
 ScriptRunner.lua
