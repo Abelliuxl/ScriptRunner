@@ -1,4 +1,4 @@
-## Interface: 110107
+## Interface: 120001, 120000, 110107
 ## Title: ScriptRunner
 ## Notes: 游戏内自定义Lua脚本执行器
 ## Author: Custom

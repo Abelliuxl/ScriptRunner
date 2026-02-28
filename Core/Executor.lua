@@ -14,6 +14,28 @@ local executionStats = {
     lastExecutionTime = nil,
 }
 
+local function compileChunk(source, chunkName, env)
+    if loadstring then
+        local chunk, loadError = loadstring(source, chunkName)
+        if chunk then
+            if env and setfenv then
+                setfenv(chunk, env)
+            end
+            return chunk
+        end
+        return nil, loadError
+    end
+
+    if load then
+        if env then
+            return load(source, chunkName, "t", env)
+        end
+        return load(source, chunkName)
+    end
+
+    return nil, "No supported Lua loader is available."
+end
+
 function Executor:Initialize(mainAddon)
     addon = mainAddon
     Storage = addon.Storage
@@ -74,10 +96,7 @@ function Executor:ExecuteScript(script, context)
 
     local env = self:CreateExecutionEnvironment(script, context)
 
-    local chunk, loadError = loadstring(script.code, script.name or "ScriptRunner")
-    if chunk then
-        setfenv(chunk, env)
-    end
+    local chunk, loadError = compileChunk(script.code, script.name or "ScriptRunner", env)
 
     if not chunk then
         executionStats.failedExecutions = executionStats.failedExecutions + 1
@@ -116,7 +135,7 @@ function Executor:ValidateScript(code)
         return false, "Code is empty."
     end
 
-    local chunk, loadError = loadstring("return function() " .. code .. " end", "ScriptRunnerValidation")
+    local chunk, loadError = compileChunk("return function() " .. code .. " end", "ScriptRunnerValidation")
 
     if not chunk then
         return false, "Syntax error: " .. tostring(loadError)
