@@ -362,7 +362,11 @@ function UI:RefreshEditor()
     if script then
         if F.editor.name then F.editor.name:SetText(script.name or "") end
         if F.editor.code then
-            F.editor.code:SetText(script.code or "")
+            if Editor and Editor.SetCodeText then
+                Editor:SetCodeText(script.code or "")
+            else
+                F.editor.code:SetText(script.code or "")
+            end
             F.editor.code:SetCursorPosition(0)
         end
         if F.editor.delayInput then F.editor.delayInput:SetText(tostring(script.delay or 5)) end
@@ -395,7 +399,13 @@ function UI:RefreshEditor()
         isDirty = false
     else
         if F.editor.name then F.editor.name:SetText("") end
-        if F.editor.code then F.editor.code:SetText("") end
+        if F.editor.code then
+            if Editor and Editor.SetCodeText then
+                Editor:SetCodeText("")
+            else
+                F.editor.code:SetText("")
+            end
+        end
         if F.editor.delayInput then F.editor.delayInput:SetText("5") end
         if F.editor.modeDropdown then UIDropDownMenu_SetText(F.editor.modeDropdown, "manual") end
 
@@ -426,24 +436,27 @@ end
 
 function UI:HookEditorChanges()
     -- Hook name changes
-    if F.editor.name then
-        F.editor.name:SetScript("OnTextChanged", function()
+    if F.editor.name and not F.editor.name._scriptRunnerChangeHooked then
+        F.editor.name:HookScript("OnTextChanged", function()
             self:CheckForChanges()
         end)
+        F.editor.name._scriptRunnerChangeHooked = true
     end
     
     -- Hook code changes
-    if F.editor.code then
-        F.editor.code:SetScript("OnTextChanged", function()
+    if F.editor.code and not F.editor.code._scriptRunnerChangeHooked then
+        F.editor.code:HookScript("OnTextChanged", function()
             self:CheckForChanges()
         end)
+        F.editor.code._scriptRunnerChangeHooked = true
     end
     
     -- Hook delay changes
-    if F.editor.delayInput then
-        F.editor.delayInput:SetScript("OnTextChanged", function()
+    if F.editor.delayInput and not F.editor.delayInput._scriptRunnerChangeHooked then
+        F.editor.delayInput:HookScript("OnTextChanged", function()
             self:CheckForChanges()
         end)
+        F.editor.delayInput._scriptRunnerChangeHooked = true
     end
 end
 
@@ -451,7 +464,14 @@ function UI:CheckForChanges()
     if not selectedScriptID or not originalScriptData then return end
     
     local currentName = F.editor.name and F.editor.name:GetText() or ""
-    local currentCode = F.editor.code and F.editor.code:GetText() or ""
+    local currentCode = ""
+    if F.editor.code then
+        if Editor and Editor.GetCodeText then
+            currentCode = Editor:GetCodeText()
+        else
+            currentCode = F.editor.code:GetText() or ""
+        end
+    end
     local currentDelay = F.editor.delayInput and F.editor.delayInput:GetText() or "5"
     local currentMode = F.editor.modeDropdown and UIDropDownMenu_GetText(F.editor.modeDropdown) or "manual"
     
@@ -486,7 +506,11 @@ function UI:SaveSelectedScript()
     
     local code = ""
     if F.editor.code then
-        code = F.editor.code:GetText()
+        if Editor and Editor.GetCodeText then
+            code = Editor:GetCodeText()
+        else
+            code = F.editor.code:GetText() or ""
+        end
     end
 
     local updates = {
