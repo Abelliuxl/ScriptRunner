@@ -3,7 +3,7 @@
 
     <!-- Main Frame -->
     <Frame name="ScriptRunnerFrame" parent="UIParent" movable="true" enableMouse="true" clampedToScreen="true" hidden="true" frameStrata="MEDIUM" toplevel="true" inherits="BackdropTemplate">
-        <Size x="900" y="650"/>
+        <Size x="980" y="700"/>
         <Anchors>
             <Anchor point="CENTER"/>
         </Anchors>
@@ -11,7 +11,7 @@
             <Layer level="ARTWORK">
                 <FontString name="$parentTitle" inherits="GameFontNormal" text="ScriptRunner">
                     <Anchors>
-                        <Anchor point="TOP" x="0" y="-18"/>
+                        <Anchor point="TOP" x="0" y="-16"/>
                     </Anchors>
                 </FontString>
             </Layer>
@@ -25,40 +25,34 @@
                 </Anchors>
             </Button>
 
-            <!-- Tabs -->
-            <Button name="$parentTab1" inherits="UIPanelButtonTemplate" text="Scripts" id="1">
-                <Size x="100" y="32"/>
-                <Anchors>
-                    <Anchor point="TOPLEFT" x="20" y="-40"/>
-                </Anchors>
-            </Button>
+            <!-- Header Actions -->
             <Button name="$parentTab2" inherits="UIPanelButtonTemplate" text="Reload" id="2">
-                <Size x="100" y="32"/>
+                <Size x="120" y="28"/>
                 <Anchors>
-                    <Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT" x="5" y="0"/>
+                    <Anchor point="TOPLEFT" x="24" y="-42"/>
                 </Anchors>
             </Button>
 
                 <!-- Scripts Page -->
                 <Frame name="$parentScriptsPage">
                     <Anchors>
-                        <Anchor point="TOPLEFT" x="15" y="-50"/>
-                        <Anchor point="BOTTOMRIGHT" x="-15" y="15"/>
+                        <Anchor point="TOPLEFT" x="20" y="-54"/>
+                        <Anchor point="BOTTOMRIGHT" x="-20" y="20"/>
                     </Anchors>
 
                 <Frames>
                     <!-- Script List -->
                     <Frame name="$parentListContainer" inherits="InsetFrameTemplate">
-                        <Size x="250"/> <!-- Removed y="0" -->
+                        <Size x="285"/>
                         <Anchors>
-                            <Anchor point="TOPLEFT" x="0" y="-70"/>
-                            <Anchor point="BOTTOMLEFT" x="0" y="15"/>
+                            <Anchor point="TOPLEFT" x="0" y="-48"/>
+                            <Anchor point="BOTTOMLEFT" x="0" y="0"/>
                         </Anchors>
                     </Frame>
                     <ScrollFrame name="$parentList" inherits="UIPanelScrollFrameTemplate">
                         <Anchors>
-                            <Anchor point="TOPLEFT" relativeTo="$parentListContainer" relativePoint="TOPLEFT" x="6" y="-8"/>
-                            <Anchor point="BOTTOMRIGHT" relativeTo="$parentListContainer" relativePoint="BOTTOMRIGHT" x="-30" y="8"/>
+                            <Anchor point="TOPLEFT" relativeTo="$parentListContainer" relativePoint="TOPLEFT" x="8" y="-10"/>
+                            <Anchor point="BOTTOMRIGHT" relativeTo="$parentListContainer" relativePoint="BOTTOMRIGHT" x="-32" y="10"/>
                         </Anchors>
                         <ScrollChild>
                             <Frame name="$parentContent">
@@ -70,17 +64,17 @@
                     <!-- Editor Area-->
                     <Frame name="$parentEditor">
                         <Anchors>
-                            <Anchor point="TOPLEFT" relativeTo="$parentListContainer" relativePoint="TOPRIGHT" x="10" y="0"/>
-                            <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-20" y="15"/>
+                            <Anchor point="TOPLEFT" relativeTo="$parentListContainer" relativePoint="TOPRIGHT" x="14" y="0"/>
+                            <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="0" y="0"/>
                         </Anchors>
                         
                         <Frames>
                             <!-- Name -->
                             <EditBox name="$parentName" inherits="InputBoxTemplate" autoFocus="false">
-                                <Size x="100" y="20"/> <!-- Changed x from 0 to 100 -->
+                                <Size x="100" y="24"/>
                                 <Anchors>
-                                    <Anchor point="TOPLEFT" x="10" y="-5"/>
-                                    <Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-10" y="-5"/>
+                                    <Anchor point="TOPLEFT" x="6" y="-2"/>
+                                    <Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-6" y="-2"/>
                                 </Anchors>
                                 <FontString inherits="GameFontNormal" />
                             </EditBox>
@@ -88,56 +82,50 @@
                             <!-- Code Editor Background Container -->
                             <Frame name="$parentEditorBackground" inherits="InsetFrameTemplate">
                                  <Anchors>
-                                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="0" y="-35"/>
-                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="0" y="80"/>
+                                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="0" y="-34"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="0" y="92"/>
                                  </Anchors>
                             </Frame>
                             
                             <!-- Code Editor Container -->
                             <Frame name="$parentEditorContainer">
                                  <Anchors>
-                                    <Anchor point="TOPLEFT" relativeTo="$parentEditorBackground" relativePoint="TOPLEFT" x="8" y="-8"/>
-                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-30" y="8"/>
+                                    <Anchor point="TOPLEFT" relativeTo="$parentEditorBackground" relativePoint="TOPLEFT" x="10" y="-10"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentEditorBackground" relativePoint="BOTTOMRIGHT" x="-34" y="10"/>
                                  </Anchors>
                             </Frame>
                             
                             <!-- Controls -->
                             <Button name="$parentSave" inherits="UIPanelButtonTemplate" text="Save">
-                                <Size x="100" y="25"/>
+                                <Size x="116" y="28"/>
                                 <Anchors>
-                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-10" y="10"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-6" y="10"/>
                                 </Anchors>
                             </Button>
                             <Button name="$parentRun" inherits="UIPanelButtonTemplate" text="Run">
-                                <Size x="100" y="25"/>
+                                <Size x="116" y="28"/>
                                 <Anchors>
                                     <Anchor point="RIGHT" relativeTo="$parentSave" relativePoint="LEFT" x="-10" y="0"/>
                                 </Anchors>
                             </Button>
                             <Button name="$parentNew" inherits="UIPanelButtonTemplate" text="New">
-                                <Size x="100" y="25"/>
+                                <Size x="116" y="28"/>
                                 <Anchors>
-                                    <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="10" y="10"/>
+                                    <Anchor point="TOPLEFT" relativeTo="ScriptRunnerFrameTab2" relativePoint="TOPRIGHT" x="8" y="0"/>
                                 </Anchors>
                             </Button>
-                             <Button name="$parentDelete" inherits="UIPanelButtonTemplate" text="Delete">
-                                 <Size x="100" y="25"/>
-                                 <Anchors>
-                                     <Anchor point="LEFT" relativeTo="$parentNew" relativePoint="RIGHT" x="10" y="0"/>
-                                 </Anchors>
+                              <Button name="$parentDelete" inherits="UIPanelButtonTemplate" text="Delete">
+                                  <Size x="116" y="28"/>
+                                  <Anchors>
+                                      <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="6" y="10"/>
+                                  </Anchors>
                              </Button>
 
                             <!-- Options -->
-                            <Frame name="$parentModeDropdown" inherits="UIDropDownMenuTemplate">
-                                <Size x="150" y="24"/>
-                                <Anchors>
-                                    <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMLEFT" x="10" y="40"/>
-                                </Anchors>
-                            </Frame>
                             <EditBox name="$parentDelay" inherits="InputBoxTemplate" autoFocus="false" numeric="true">
-                                <Size x="60" y="20"/>
+                                <Size x="72" y="24"/>
                                 <Anchors>
-                                    <Anchor point="LEFT" relativeTo="$parentModeDropdown" relativePoint="RIGHT" x="20" y="2"/>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="-8" y="46"/>
                                 </Anchors>
                                 <FontString inherits="GameFontNormal" />
                                 <Scripts>
@@ -146,6 +134,12 @@
                                     </OnEnterPressed>
                                 </Scripts>
                             </EditBox>
+                            <Frame name="$parentModeDropdown" inherits="UIDropDownMenuTemplate">
+                                <Size x="165" y="26"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOMRIGHT" relativeTo="$parentDelay" relativePoint="BOTTOMLEFT" x="-18" y="-2"/>
+                                </Anchors>
+                            </Frame>
                         </Frames>
                         
                         <Layers>

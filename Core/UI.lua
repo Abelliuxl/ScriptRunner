@@ -20,6 +20,35 @@ local originalScriptData = {} -- Store original script data for comparison
 local LIST_ENTRY_HEIGHT = 28
 local LIST_ENTRY_GAP = 4
 
+function UI:UpdateHeaderButtons()
+    if F.tabs[2] then
+        F.tabs[2]:Enable()
+    end
+end
+
+function UI:ApplyVisualTheme()
+    if F.main and F.main.SetBackdrop then
+        F.main:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true,
+            tileSize = 32,
+            edgeSize = 32,
+            insets = { left = 11, right = 12, top = 12, bottom = 11 },
+        })
+    end
+
+    if F.editor.name then
+        F.editor.name:SetTextInsets(8, 8, 0, 0)
+    end
+
+    if F.editor.delayInput then
+        F.editor.delayInput:SetTextInsets(6, 6, 0, 0)
+    end
+
+    self:UpdateHeaderButtons()
+end
+
 function UI:Initialize(mainAddon)
     Storage = mainAddon.Storage
     Executor = mainAddon.Executor
@@ -31,18 +60,19 @@ function UI:Initialize(mainAddon)
         title = ScriptRunnerFrameTitle,
         closeButton = ScriptRunnerFrameCloseButton,
         tabs = {
-            [1] = ScriptRunnerFrameTab1,
             [2] = ScriptRunnerFrameTab2,
         },
         pages = {
             [1] = ScriptRunnerFrameScriptsPage,
             [2] = ScriptRunnerFrameSettingsPage,
         },
+        scriptListContainer = ScriptRunnerFrameScriptsPageListContainer,
         scriptList = ScriptRunnerFrameScriptsPageList,
         scriptListContent = ScriptRunnerFrameScriptsPageListContent,
         scriptListButtons = {},
         editor = {
             name = ScriptRunnerFrameScriptsPageEditorName,
+            editorBackground = ScriptRunnerFrameScriptsPageEditorEditorBackground,
             editorContainer = ScriptRunnerFrameScriptsPageEditorEditorContainer,
             saveButton = ScriptRunnerFrameScriptsPageEditorSave,
             saveStatus = ScriptRunnerFrameScriptsPageEditorSaveStatus,
@@ -62,16 +92,7 @@ function UI:Initialize(mainAddon)
         print("|cffff0000ScriptRunner|r: Editor container not found!")
     end
 
-    if F.main and F.main.SetBackdrop then
-        F.main:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true,
-            tileSize = 32,
-            edgeSize = 32,
-            insets = { left = 11, right = 12, top = 12, bottom = 11 },
-        })
-    end
+    self:ApplyVisualTheme()
 
     -- Register frame events
     F.main:SetScript("OnShow", function() self:OnShow() end)
@@ -85,9 +106,6 @@ function UI:Initialize(mainAddon)
     -- Button logic
     if F.closeButton then
         F.closeButton:SetScript("OnClick", function() self:Hide() end)
-    end
-    if F.tabs[1] then
-        F.tabs[1]:SetScript("OnClick", function() self:SelectTab(1) end)
     end
     if F.tabs[2] then
         F.tabs[2]:SetScript("OnClick", function() self:ReloadUI() end)
@@ -106,8 +124,6 @@ function UI:Initialize(mainAddon)
         F.editor.runButton:SetScript("OnClick", function() self:RunSelectedScript() end)
     end
 
-    -- Initialize tabs
-    PanelTemplates_SetNumTabs(F.main, 2)
     if F.editor.modeDropdown then
         UI_ModeDropDown_Initialize(F.editor.modeDropdown)
         UIDropDownMenu_SetWidth(F.editor.modeDropdown, 120)
@@ -145,13 +161,7 @@ end
 function UI:SelectTab(tabIndex)
     currentTab = tabIndex
 
-    for i, tab in pairs(F.tabs) do
-        if i == tabIndex then
-            tab:Disable()
-        else
-            tab:Enable()
-        end
-    end
+    self:UpdateHeaderButtons()
 
     for i, page in pairs(F.pages) do
         if i == tabIndex then
@@ -297,14 +307,14 @@ function UI:RefreshScriptList()
         end
 
         if entry.id == selectedScriptID then
-            button:SetBackdropColor(0.07, 0.18, 0.40, 0.95)
-            button:SetBackdropBorderColor(0.25, 0.55, 0.95, 1)
+            button:SetBackdropColor(0.08, 0.17, 0.28, 0.96)
+            button:SetBackdropBorderColor(0.78, 0.63, 0.16, 1)
         elseif entry.script.enabled then
-            button:SetBackdropColor(0.05, 0.05, 0.05, 0.8)
-            button:SetBackdropBorderColor(0.18, 0.18, 0.18, 1)
+            button:SetBackdropColor(0.04, 0.05, 0.07, 0.84)
+            button:SetBackdropBorderColor(0.18, 0.22, 0.26, 1)
         else
-            button:SetBackdropColor(0.04, 0.04, 0.04, 0.65)
-            button:SetBackdropBorderColor(0.12, 0.12, 0.12, 1)
+            button:SetBackdropColor(0.03, 0.03, 0.04, 0.68)
+            button:SetBackdropBorderColor(0.10, 0.12, 0.14, 1)
         end
 
         button:Show()
